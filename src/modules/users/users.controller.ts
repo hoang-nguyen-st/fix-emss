@@ -5,7 +5,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -25,6 +25,7 @@ import { JwtAccessTokenGuard } from '../auth/guards/jwt-access-token.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
+import { RequestCustom } from '@app/common/interfaces/request-custom';
 
 @Controller('users')
 @UseGuards(JwtAccessTokenGuard)
@@ -45,12 +46,15 @@ export class UsersController {
   }
 
   @Patch('reset-password/:id')
-  async resetPassword(@Param('id', ParseIntPipe) id: number): Promise<ResponseItem<UserDto>> {
+  async resetPassword(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<UserDto>> {
     return await this.usersService.resetPassword(id);
   }
 
   @Post('change-password')
-  async changePassword(@Req() req, @Body() changePasswordDto: ChangePasswordDto): Promise<ResponseItem<UserDto>> {
+  async changePassword(
+    @Req() req: RequestCustom,
+    @Body() changePasswordDto: ChangePasswordDto
+  ): Promise<ResponseItem<UserDto>> {
     return await this.usersService.changePassword(req.user.userId, changePasswordDto);
   }
 
@@ -60,28 +64,28 @@ export class UsersController {
   }
 
   @Get('me')
-  async getProfile(@Req() req): Promise<ResponseItem<ProfileDto>> {
+  async getProfile(@Req() req: RequestCustom): Promise<ResponseItem<ProfileDto>> {
     return await this.usersService.getProfile(req.user.userId);
   }
 
   @Patch('profile')
-  async updateProfile(@Req() req, @Body() updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+  async updateProfile(@Req() req: RequestCustom, @Body() updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
     return await this.usersService.updateProfile(req.user.userId, updateUserDto);
   }
 
   @Delete(':id')
-  async deleteUser(@Param('id', ParseIntPipe) id: number): Promise<ResponseItem<null>> {
+  async deleteUser(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<null>> {
     return await this.usersService.deleteUser(id);
   }
 
   @Get(':id')
-  async getUser(@Param('id', ParseIntPipe) id: number): Promise<ResponseItem<UserDto>> {
+  async getUser(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<UserDto>> {
     return await this.usersService.getUser(id);
   }
 
   @Patch(':id')
   async update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto
   ): Promise<ResponseItem<UserDto>> {
     return await this.usersService.update(id, updateUserDto);
