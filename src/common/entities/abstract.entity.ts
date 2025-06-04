@@ -3,7 +3,7 @@ import { Exclude } from 'class-transformer';
 
 export abstract class AbstractEntity {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @CreateDateColumn({
     type: 'timestamp',

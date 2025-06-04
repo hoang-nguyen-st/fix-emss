@@ -29,10 +29,10 @@ export class AuthService {
       deletedBy: null,
     });
 
-    if (!user) throw new UnauthorizedException('Tài khoản không đúng');
+    if (!user) throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
 
-    const comparePassword = await bcrypt.compareSync(credentialsDto.password, user.password);
-    if (!comparePassword) throw new UnauthorizedException('Tài khoản không đúng');
+    const comparePassword = bcrypt.compareSync(credentialsDto.password, user.password);
+    if (!comparePassword) throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
 
     return {
       id: user.id,

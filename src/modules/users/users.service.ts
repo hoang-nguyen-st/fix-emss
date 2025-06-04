@@ -60,7 +60,7 @@ export class UsersService {
     return new ResponseItem(user, 'Tạo mới dữ liệu thành công');
   }
 
-  async resetPassword(id: number): Promise<ResponseItem<UserDto>> {
+  async resetPassword(id: string): Promise<ResponseItem<UserDto>> {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) {
       throw new BadRequestException('Nhân viên không tồn tại');
@@ -82,7 +82,7 @@ export class UsersService {
     return new ResponseItem(result, 'Đặt lại mật khẩu thành công');
   }
 
-  async changePassword(id: number, data: ChangePasswordDto): Promise<ResponseItem<UserDto>> {
+  async changePassword(id: string, data: ChangePasswordDto): Promise<ResponseItem<UserDto>> {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user || !bcrypt.compareSync(data.oldPassword, user.password)) {
       throw new BadRequestException('Mật khẩu cũ không chính xác');
@@ -114,7 +114,7 @@ export class UsersService {
     return new ResponsePaginate(result, pageMetaDto, 'Thành công');
   }
 
-  async getUser(id: number): Promise<ResponseItem<UserDto>> {
+  async getUser(id: string): Promise<ResponseItem<UserDto>> {
     const user = await this.userRepository.findOne({
       where: {
         id,
@@ -129,7 +129,7 @@ export class UsersService {
     );
   }
 
-  async getProfile(id: number): Promise<ResponseItem<ProfileDto>> {
+  async getProfile(id: string): Promise<ResponseItem<ProfileDto>> {
     const user = await this.userRepository.findOne({
       where: { id },
     });
@@ -143,7 +143,7 @@ export class UsersService {
     return new ResponseItem(result, 'Thành công');
   }
 
-  async updateProfile(id: number, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+  async updateProfile(id: string, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) {
       throw new BadRequestException('Thông tin cá nhân không tồn tại');
@@ -177,7 +177,7 @@ export class UsersService {
     return new ResponseItem(result, 'Cập nhật dữ liệu thành công');
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) {
       throw new BadRequestException('Nhân viên không tồn tại');
@@ -227,7 +227,7 @@ export class UsersService {
     return new ResponseItem(result, 'Cập nhật dữ liệu thành công');
   }
 
-  async deleteUser(id: number): Promise<ResponseItem<null>> {
+  async deleteUser(id: string): Promise<ResponseItem<null>> {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
     if (user.status === StatusEnum.ACTIVE) throw new BadRequestException('Không được xóa nhân viên đang hoạt động');
