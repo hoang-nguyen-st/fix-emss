@@ -8,7 +8,7 @@ import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-
+import { TimeSlotsEntity } from '@app/modules/meter-types/entities/time-slots.entity';
 import { UserEntity } from '@UsersModule/entities';
 
 @Module({
@@ -34,6 +34,7 @@ import { UserEntity } from '@UsersModule/entities';
           PricingElectricRuleEntity,
           VoltageLevelEntity,
           InvoiceEntity,
+          TimeSlotsEntity,
         ],
       }),
     }),

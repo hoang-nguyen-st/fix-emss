@@ -1,7 +1,13 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { PricingElectricRuleEntity } from '../../pricing-electric-rules/entities/pricing-electric-rule.entity';
 import { AbstractEntity } from '@Entity/abstract.entity';
+
+export enum InvoiceStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  CANCELLED = 'cancelled',
+}
 
 @Entity('invoices')
 export class InvoiceEntity extends AbstractEntity {
@@ -29,8 +35,8 @@ export class InvoiceEntity extends AbstractEntity {
   @Column({ type: 'decimal' })
   vatAmount: number;
 
-  @Column({ type: 'varchar' })
-  status: string;
+  @Column({ type: 'enum', enum: InvoiceStatus })
+  status: InvoiceStatus;
 
   @ManyToOne(() => UserEntity)
   @JoinColumn({ name: 'user_id' })

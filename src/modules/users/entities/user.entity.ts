@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import { Exclude } from 'class-transformer';
-import { BeforeInsert, Column, Entity, OneToMany, Unique } from 'typeorm';
+import { BeforeInsert, Column, Entity, OneToMany, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 import { StatusEnum } from '@Constant/enums';
 import { AbstractEntity } from '@Entity/abstract.entity';
@@ -12,6 +12,9 @@ import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
 @Unique('UQ_users_phone_deletedAt', ['phone', 'deletedAt'])
 @Unique('UQ_users_identityId_deletedAt', ['identityId', 'deletedAt'])
 export class UserEntity extends AbstractEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
   @Column({ type: 'varchar', length: 255 })
   email: string;
 

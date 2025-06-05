@@ -16,10 +16,10 @@ export class ZoneEntity extends AbstractEntity {
   @JoinColumn({ name: 'project_id' })
   project: ProjectEntity;
 
-  @OneToMany(() => ZoneResourceEntity, (resource) => resource.zone)
-  resources: ZoneResourceEntity[];
-
   @ManyToOne(() => UserEntity, (user) => user.zones)
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
+
+  @OneToMany(() => ZoneResourceEntity, (resource) => resource.zone)
+  zoneResources: ZoneResourceEntity[];
 }
