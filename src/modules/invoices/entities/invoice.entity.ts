@@ -1,13 +1,8 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { PricingElectricRuleEntity } from '../../pricing-electric-rules/entities/pricing-electric-rule.entity';
 import { AbstractEntity } from '@Entity/abstract.entity';
-
-export enum InvoiceStatus {
-  PENDING = 'pending',
-  PAID = 'paid',
-  CANCELLED = 'cancelled',
-}
+import { InvoiceStatus } from '@Constant/enums';
 
 @Entity('invoices')
 export class InvoiceEntity extends AbstractEntity {

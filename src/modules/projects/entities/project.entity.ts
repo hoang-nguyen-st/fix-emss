@@ -2,17 +2,7 @@ import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { AbstractEntity } from '@Entity/abstract.entity';
 import { UserEntity } from '@UsersModule/entities';
 import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
-
-export enum ProjectType {
-  RESIDENTIAL = 'residential',
-  BUSINESS = 'business',
-  PRODUCTION = 'production',
-}
-
-export enum ProjectStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-}
+import { ProjectStatus, ProjectType } from '@Constant/enums';
 
 @Entity('projects')
 export class ProjectEntity extends AbstractEntity {

@@ -1,17 +1,7 @@
 import { Entity, Column, ManyToOne } from 'typeorm';
 import { MeterTypeEntity } from './meter-type.entity';
 import { AbstractEntity } from '@Entity/abstract.entity';
-
-export enum TimeSlotName {
-  PEAK = 'peak',
-  OFF_PEAK = 'off_peak',
-  MID_PEAK = 'mid_peak',
-}
-
-export enum DayType {
-  WEEKEND = 'weekend',
-  WEEKDAY = 'weekday',
-}
+import { DayType, TimeSlotName } from '@Constant/enums';
 
 @Entity('time_slots')
 export class TimeSlotsEntity extends AbstractEntity {
