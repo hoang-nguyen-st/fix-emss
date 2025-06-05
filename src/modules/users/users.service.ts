@@ -282,4 +282,10 @@ export class UsersService {
 
     return new ResponseItem(null, 'Xóa ảnh đại diện thành công');
   }
+
+  async getUserEntityById(id: string): Promise<UserEntity> {
+    const user = await this.userRepository.findOneBy({ id, deletedAt: null });
+    if (!user) throw new BadRequestException('Người dùng không tồn tại');
+    return user;
+  }
 }

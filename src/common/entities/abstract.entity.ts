@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, DeleteDateColumn, PrimaryGeneratedColumn, Upd
 import { Exclude } from 'class-transformer';
 
 export abstract class AbstractEntity {
-  @PrimaryGeneratedColumn({ type: 'bigint' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @CreateDateColumn({

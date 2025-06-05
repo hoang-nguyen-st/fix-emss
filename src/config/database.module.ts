@@ -1,7 +1,14 @@
+import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
+import { MeterTypeEntity } from '@app/modules/meter-types/entities/meter-type.entity';
+import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
+import { ProjectEntity } from '@app/modules/projects/entities/project.entity';
+import { VoltageLevelEntity } from '@app/modules/voltage-levels/entities/voltage-level.entity';
+import { ZoneResourceEntity } from '@app/modules/zones/entities/zone-resource.entity';
+import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-
+import { TimeSlotsEntity } from '@app/modules/meter-types/entities/time-slots.entity';
 import { UserEntity } from '@UsersModule/entities';
 
 @Module({
@@ -18,7 +25,17 @@ import { UserEntity } from '@UsersModule/entities';
         password: configService.get<string>('DB_POSTGRE_PASSWORD'),
         synchronize: configService.get<boolean>('DB_POSTGRE_SYNCHRONIZE'),
         logging: configService.get<boolean>('DB_POSTGRE_LOGGING'),
-        entities: [UserEntity],
+        entities: [
+          UserEntity,
+          ProjectEntity,
+          ZoneEntity,
+          ZoneResourceEntity,
+          MeterTypeEntity,
+          PricingElectricRuleEntity,
+          VoltageLevelEntity,
+          InvoiceEntity,
+          TimeSlotsEntity,
+        ],
       }),
     }),
   ],
