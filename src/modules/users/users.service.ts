@@ -17,6 +17,10 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
 import { avtPathName, baseImageUrl } from '@Constant/url';
+import { AccountData } from '../data-crawler/data-crawler.service';
+import { ProjectEntity } from '../projects/entities/project.entity';
+import { buildDataMapById } from '@app/helpers/buildDataMapById';
+import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()
 export class UsersService {
@@ -287,5 +291,37 @@ export class UsersService {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
     return user;
+  }
+
+  public async syncUsersData(project: ProjectEntity, externalUsers: AccountData[]) {
+    const externalUserMap = buildDataMapById<AccountData>(externalUsers);
+    const users = await this.findUsersByProjectId(project.id);
+    const userMap = buildDataMapById<UserEntity>(users);
+
+    const { toAddOrUpdate, toDelete } = await classifyMapDifferences<AccountData, UserEntity>(
+      externalUserMap,
+      userMap,
+      this.isUserChanged.bind(this),
+      this.mapAccountDataToUserEntity.bind(this),
+      this.userRepository.create.bind(this.userRepository)
+    );
+    await persistEntityChanges(this.userRepository, toAddOrUpdate, toDelete);
+  }
+
+  private isUserChanged(user: UserEntity, account: AccountData): boolean {
+    return user.email !== account.email || user.name !== account.nickName || user.phone !== account.phoneNumber;
+  }
+
+  public async mapAccountDataToUserEntity(account: AccountData): Promise<Partial<UserEntity>> {
+    return {
+      id: account.id,
+      email: account.email,
+      name: account.nickName,
+      phone: account.phoneNumber,
+      status: StatusEnum.INACTIVE,
+    };
+  }
+  public async findUsersByProjectId(projectId: string): Promise<UserEntity[]> {
+    return this.userRepository.find({ where: { projectUsers: { project: { id: projectId } } } });
   }
 }

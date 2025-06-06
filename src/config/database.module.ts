@@ -10,6 +10,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TimeSlotsEntity } from '@app/modules/meter-types/entities/time-slots.entity';
 import { UserEntity } from '@UsersModule/entities';
+import { ProjectUserEntity } from '@app/modules/project-users/entities/project-users.entity';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UserEntity } from '@UsersModule/entities';
         entities: [
           UserEntity,
           ProjectEntity,
+          ProjectUserEntity,
           ZoneEntity,
           ZoneResourceEntity,
           MeterTypeEntity,

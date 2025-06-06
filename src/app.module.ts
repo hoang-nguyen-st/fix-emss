@@ -7,6 +7,7 @@ import { DatabaseModule } from '@app/config/database.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { XMLMiddleware } from './common/middleware/xml.middleware';
 import { AuthModule } from './modules/auth/auth.module';
+import { DataCrawlerModule } from './modules/data-crawler/data-crawler.module';
 import * as Joi from 'joi';
 
 @Module({
@@ -27,11 +28,14 @@ import * as Joi from 'joi';
         JWT_ACCESS_EXPIRES: Joi.string().required(),
         JWT_REFRESH_SECRETKEY: Joi.string().required(),
         JWT_REFRESH_EXPIRES: Joi.string().required(),
+        DATA_CRAWLER_API_ENDPOINT: Joi.string().required(),
+        JWT_ACCESS_TOKEN_AMIGO: Joi.string().required(),
       }),
     }),
     DatabaseModule,
     UsersModule,
     AuthModule,
+    DataCrawlerModule,
   ],
   providers: [
     {

@@ -1,27 +1,24 @@
 import * as bcrypt from 'bcrypt';
 import { Exclude } from 'class-transformer';
-import { BeforeInsert, Column, Entity, OneToMany, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { BeforeInsert, Column, Entity, OneToMany, PrimaryGeneratedColumn, Unique, BeforeUpdate } from 'typeorm';
 
 import { StatusEnum } from '@Constant/enums';
 import { AbstractEntity } from '@Entity/abstract.entity';
-import { ProjectEntity } from '@app/modules/projects/entities/project.entity';
 import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
+import { ProjectUserEntity } from '@app/modules/project-users/entities/project-users.entity';
 
 @Entity('users')
 @Unique('UQ_users_email_deletedAt', ['email', 'deletedAt'])
 @Unique('UQ_users_phone_deletedAt', ['phone', 'deletedAt'])
 @Unique('UQ_users_identityId_deletedAt', ['identityId', 'deletedAt'])
 export class UserEntity extends AbstractEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
   @Column({ type: 'varchar', length: 255 })
   email: string;
 
-  @Column({ type: 'varchar', length: 10 })
+  @Column({ type: 'varchar', nullable: true })
   phone: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: true })
   @Exclude()
   password: string;
 
@@ -37,7 +34,7 @@ export class UserEntity extends AbstractEntity {
   @Column({ type: 'varchar', nullable: true, length: 200 })
   address: string;
 
-  @Column({ type: 'varchar', length: 12 })
+  @Column({ type: 'varchar', length: 12, nullable: true })
   identityId: string;
 
   @Column({ type: 'varchar', nullable: true })
@@ -45,15 +42,18 @@ export class UserEntity extends AbstractEntity {
   refreshToken: string;
 
   @BeforeInsert()
-  async hasPassword() {
-    this.password = await bcrypt.hash(this.password, 10);
+  @BeforeUpdate()
+  async hashPassword() {
+    if (this.password) {
+      this.password = await bcrypt.hash(this.password, 10);
+    }
   }
 
   @Column({ type: 'varchar', nullable: true })
   avatar: string;
 
-  @OneToMany(() => ProjectEntity, (project) => project.user)
-  projects: ProjectEntity[];
+  @OneToMany(() => ProjectUserEntity, (pu) => pu.user)
+  projectUsers: ProjectUserEntity[];
 
   @OneToMany(() => ZoneEntity, (zone) => zone.user)
   zones: ZoneEntity[];

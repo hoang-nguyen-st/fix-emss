@@ -19,6 +19,7 @@
     "seed": "node dist/seed"
   },
   "dependencies": {
+    "@nestjs/axios": "^4.0.0",
     "@nestjs/common": "^9.0.0",
     "@nestjs/config": "^2.2.0",
     "@nestjs/core": "^9.0.0",
@@ -27,11 +28,11 @@
     "@nestjs/passport": "^9.0.0",
     "@nestjs/platform-express": "^9.0.0",
     "@nestjs/platform-socket.io": "^9.4.3",
-    "@nestjs/schedule": "^2.2.0",
+    "@nestjs/schedule": "^6.0.0",
     "@nestjs/swagger": "^6.1.3",
     "@nestjs/typeorm": "^9.0.1",
     "@nestjs/websockets": "^9.4.3",
-    "axios": "^1.3.4",
+    "axios": "^1.9.0",
     "babel-eslint": "^10.1.0",
     "bcrypt": "^5.1.0",
     "class-transformer": "^0.5.1",
