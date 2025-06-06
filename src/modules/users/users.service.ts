@@ -3,8 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { plainToClass } from 'class-transformer';
 import * as fs from 'fs';
-import { Not, Repository } from 'typeorm';
-
+import { Not, Repository, In } from 'typeorm';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { convertPath } from '@app/common/utils';
 import { StatusEnum } from '@Constant/enums';
@@ -321,7 +320,13 @@ export class UsersService {
       status: StatusEnum.INACTIVE,
     };
   }
+
   public async findUsersByProjectId(projectId: string): Promise<UserEntity[]> {
     return this.userRepository.find({ where: { projectUsers: { project: { id: projectId } } } });
+  }
+
+  public async loadUserFromExternal(externalUsers: AccountData[]): Promise<UserEntity[]> {
+    const userIds = externalUsers.map((u) => u.id);
+    return await this.userRepository.findBy({ id: In(userIds) });
   }
 }

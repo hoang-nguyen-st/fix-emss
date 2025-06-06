@@ -87,7 +87,6 @@ export class DataCrawlerService {
    * @returns Promise with array of AccountData
    */
   private async fetchAccountInProject(projectId: string): Promise<AccountData[]> {
-    this.logger.verbose(`Fetching accounts for project ${projectId}`);
     const response = await this.fetchData(`/project/api/Project/Users?projectId=${projectId}&keyWord=&roleName=`);
     const rawAccounts = response?.data ?? [];
     return this.transformAndFilterAccounts(rawAccounts);
@@ -142,7 +141,7 @@ export class DataCrawlerService {
       for (const project of projects) {
         const users = await this.fetchAccountInProject(project.id);
         await this.usersService.syncUsersData(project, users);
-        await this.projectUsersService.addUsersToProject(project, users);
+        await this.projectUsersService.syncUsersDataToProject(project, users);
       }
       const t1 = performance.now();
       this.logger.log(`crawlAccountData took ${(t1 - t0).toFixed(2)} ms`);
