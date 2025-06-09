@@ -16,7 +16,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
 import { avtPathName, baseImageUrl } from '@Constant/url';
-import { AccountData } from '../data-crawler/data-crawler.service';
+import { AccountExternalData } from '@app/common/interfaces';
 import { ProjectEntity } from '../projects/entities/project.entity';
 import { buildDataMapById } from '@app/helpers/buildDataMapById';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
@@ -292,12 +292,12 @@ export class UsersService {
     return user;
   }
 
-  public async syncUsersData(project: ProjectEntity, externalUsers: AccountData[]) {
-    const externalUserMap = buildDataMapById<AccountData>(externalUsers);
+  public async syncUsersData(project: ProjectEntity, externalUsers: AccountExternalData[]) {
+    const externalUserMap = buildDataMapById<AccountExternalData>(externalUsers);
     const users = await this.findUsersByProjectId(project.id);
     const userMap = buildDataMapById<UserEntity>(users);
 
-    const { toAddOrUpdate, toDelete } = await classifyMapDifferences<AccountData, UserEntity>(
+    const { toAddOrUpdate, toDelete } = await classifyMapDifferences<AccountExternalData, UserEntity>(
       externalUserMap,
       userMap,
       this.isUserChanged.bind(this),
@@ -307,11 +307,11 @@ export class UsersService {
     await persistEntityChanges(this.userRepository, toAddOrUpdate, toDelete);
   }
 
-  private isUserChanged(user: UserEntity, account: AccountData): boolean {
+  private isUserChanged(user: UserEntity, account: AccountExternalData): boolean {
     return user.email !== account.email || user.name !== account.nickName || user.phone !== account.phoneNumber;
   }
 
-  public async mapAccountDataToUserEntity(account: AccountData): Promise<Partial<UserEntity>> {
+  public async mapAccountDataToUserEntity(account: AccountExternalData): Promise<Partial<UserEntity>> {
     return {
       id: account.id,
       email: account.email,
@@ -325,7 +325,7 @@ export class UsersService {
     return this.userRepository.find({ where: { projectUsers: { project: { id: projectId } } } });
   }
 
-  public async loadUserFromExternal(externalUsers: AccountData[]): Promise<UserEntity[]> {
+  public async loadUserFromExternal(externalUsers: AccountExternalData[]): Promise<UserEntity[]> {
     const userIds = externalUsers.map((u) => u.id);
     return await this.userRepository.findBy({ id: In(userIds) });
   }

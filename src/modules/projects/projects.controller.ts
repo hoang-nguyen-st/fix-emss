@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Delete, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { ProjectEntity } from './entities/project.entity';

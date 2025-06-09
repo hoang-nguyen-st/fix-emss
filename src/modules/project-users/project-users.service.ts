@@ -5,7 +5,7 @@ import { ProjectUserEntity } from './entities/project-users.entity';
 import { ProjectEntity } from '../projects/entities/project.entity';
 import { UserEntity } from '@UsersModule/entities';
 import { UserRoleEnum } from '@Constant/enums';
-import { AccountData } from '@app/modules/data-crawler/data-crawler.service';
+import { AccountExternalData } from '@app/common/interfaces';
 import { buildDataMapById } from '@app/helpers/buildDataMapById';
 import { UsersService } from '@UsersModule/users.service';
 
@@ -19,9 +19,9 @@ export class ProjectUsersService {
     private readonly usersService: UsersService
   ) {}
 
-  async syncUsersDataToProject(project: ProjectEntity, externalUsers: AccountData[]): Promise<void> {
+  async syncUsersDataToProject(project: ProjectEntity, externalUsers: AccountExternalData[]): Promise<void> {
     try {
-      const externalMap = buildDataMapById<AccountData>(externalUsers);
+      const externalMap = buildDataMapById<AccountExternalData>(externalUsers);
       const existingMap = await this.getExistingProjectUserMap(project.id);
       const userData = await this.usersService.loadUserFromExternal(externalUsers);
       const userMap = buildDataMapById<UserEntity>(userData);
@@ -44,7 +44,7 @@ export class ProjectUsersService {
   }
 
   private diffProjectUsers(
-    externalMap: Map<string, AccountData>,
+    externalMap: Map<string, AccountExternalData>,
     existingMap: Map<string, ProjectUserEntity>,
     userMap: Map<string, UserEntity>,
     project: ProjectEntity

@@ -1,30 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectUsersService } from '../project-users/project-users.service';
 import { UsersService } from '@UsersModule/users.service';
-
-/**
- * Interface representing project data from external API
- */
-export interface ProjectData {
-  id: string;
-  name: string;
-}
-
-/**
- * Interface representing account data from external API
- */
-export interface AccountData {
-  id: string;
-  email: string;
-  nickName: string;
-  phoneNumber: string;
-  roleName: string;
-}
+import { AccountExternalData, ProjectExternalData } from '@app/common/interfaces';
+import { CronJob } from 'cron';
 
 /**
  * Service responsible for crawling and synchronizing data from external API
@@ -38,12 +21,36 @@ export class DataCrawlerService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly schedulerRegistry: SchedulerRegistry,
     private readonly projectsService: ProjectsService,
     private readonly projectUsersService: ProjectUsersService,
     private readonly usersService: UsersService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.accessToken = this.configService.get<string>('JWT_ACCESS_TOKEN_AMIGO');
+  }
+
+  onModuleInit() {
+    this.setupCronJobs();
+  }
+
+  private setupCronJobs() {
+    const projectCronTime = this.configService.get<string>('PROJECT_CRON_TIME');
+    const accountCronTime = this.configService.get<string>('ACCOUNT_CRON_TIME');
+
+    const projectJob = new CronJob(projectCronTime, () => {
+      this.crawlProjectData();
+    });
+
+    const accountJob = new CronJob(accountCronTime, () => {
+      this.crawlAccountData();
+    });
+
+    this.schedulerRegistry.addCronJob('projectJob', projectJob);
+    this.schedulerRegistry.addCronJob('accountJob', accountJob);
+
+    projectJob.start();
+    accountJob.start();
   }
 
   /**
@@ -72,10 +79,10 @@ export class DataCrawlerService {
    * Fetches all projects from the external API
    * @returns Promise with array of ProjectData
    */
-  private async fetchProjects(): Promise<ProjectData[]> {
+  private async fetchProjects(): Promise<ProjectExternalData[]> {
     const response = await this.fetchData('/project/api/Project/EnterprisePageList?pageSize=-1');
     const rawProjects = response?.data?.data ?? [];
-    return rawProjects.map((project: ProjectData) => ({
+    return rawProjects.map((project: ProjectExternalData) => ({
       id: project.id,
       name: project.name,
     }));
@@ -86,7 +93,7 @@ export class DataCrawlerService {
    * @param projectId - ID of the project to fetch accounts for
    * @returns Promise with array of AccountData
    */
-  private async fetchAccountInProject(projectId: string): Promise<AccountData[]> {
+  private async fetchAccountInProject(projectId: string): Promise<AccountExternalData[]> {
     const response = await this.fetchData(`/project/api/Project/Users?projectId=${projectId}&keyWord=&roleName=`);
     const rawAccounts = response?.data ?? [];
     return this.transformAndFilterAccounts(rawAccounts);
@@ -97,8 +104,8 @@ export class DataCrawlerService {
    * @param data - Raw account data from API
    * @returns Array of transformed and filtered AccountData objects
    */
-  private transformAndFilterAccounts(data: any[]): AccountData[] {
-    return data.reduce((acc: AccountData[], u: any) => {
+  private transformAndFilterAccounts(data: any[]): AccountExternalData[] {
+    return data.reduce((acc: AccountExternalData[], u: any) => {
       u.id = u.userId;
       if (u.id && u.email && u.nickName) {
         acc.push(u);
@@ -109,9 +116,8 @@ export class DataCrawlerService {
 
   /**
    * Crawls and synchronizes project data
-   * Runs every minute via cron job
+   * Runs based on PROJECT_CRON_TIME environment variable
    */
-  @Cron('*/1 * * * * *')
   public async crawlProjectData() {
     const t0 = performance.now();
     this.logger.log('Starting data project crawling process...');
@@ -130,9 +136,8 @@ export class DataCrawlerService {
 
   /**
    * Crawls and synchronizes account data for all projects
-   * Runs every minute via cron job
+   * Runs based on ACCOUNT_CRON_TIME environment variable
    */
-  @Cron('*/1 * * * * *')
   public async crawlAccountData() {
     const t0 = performance.now();
     this.logger.log('Starting data account crawling process...');

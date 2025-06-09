@@ -1,16 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { ProjectEntity } from './entities/project.entity';
-import { ProjectData } from '../data-crawler/data-crawler.service';
+import { ProjectExternalData } from '@app/common/interfaces';
 import { buildDataMapById } from '@app/helpers/buildDataMapById';
-import { classifyMapDifferences } from '@app/common/utils/classifyUtils';
-import { persistEntityChanges } from '@app/common/utils/persistenceUtil';
+import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()
 export class ProjectsService {
-  private readonly logger = new Logger(ProjectsService.name);
-
   constructor(
     @InjectRepository(ProjectEntity)
     private readonly projectRepository: Repository<ProjectEntity>
@@ -20,7 +17,7 @@ export class ProjectsService {
    * Creates or updates projects based on external data
    * @param projects - Array of project data from external source
    */
-  async createOrUpdateProjects(projects: ProjectData[]): Promise<void> {
+  async createOrUpdateProjects(projects: ProjectExternalData[]): Promise<void> {
     if (projects.length === 0) return;
 
     const projectIds = projects.map((p) => p.id);
@@ -40,11 +37,11 @@ export class ProjectsService {
     await persistEntityChanges(this.projectRepository, toAddOrUpdate, toDelete);
   }
 
-  private isProjectChanged(project: ProjectEntity, external: ProjectData): boolean {
+  private isProjectChanged(project: ProjectEntity, external: ProjectExternalData): boolean {
     return project.name !== external.name;
   }
 
-  private mapProjectDataToProjectEntity(project: ProjectData): Partial<ProjectEntity> {
+  private mapProjectDataToProjectEntity(project: ProjectExternalData): Partial<ProjectEntity> {
     return {
       id: project.id,
       name: project.name,
