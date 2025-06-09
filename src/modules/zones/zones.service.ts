@@ -5,7 +5,7 @@ import { ZoneEntity } from './entities/zone.entity';
 import { CreateZoneDto } from './dto/create-zone.dto';
 import { UpdateZoneDto } from './dto/update-zone.dto';
 import { ZoneExternalData } from '@app/common/interfaces';
-import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 import { ProjectsService } from '../projects/projects.service';
 import { ZONE_CONSTANTS } from '@Constant/zone';

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { ProjectEntity } from './entities/project.entity';
 import { ProjectExternalData } from '@app/common/interfaces';
-import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()

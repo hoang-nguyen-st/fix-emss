@@ -6,7 +6,7 @@ import { ProjectEntity } from '../projects/entities/project.entity';
 import { UserEntity } from '@UsersModule/entities';
 import { UserRoleEnum } from '@Constant/enums';
 import { AccountExternalData } from '@app/common/interfaces';
-import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
 import { UsersService } from '@UsersModule/users.service';
 
 @Injectable()

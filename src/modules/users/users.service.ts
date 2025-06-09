@@ -18,7 +18,7 @@ import { UserDto } from './dto/user.dto';
 import { avtPathName, baseImageUrl } from '@Constant/url';
 import { AccountExternalData } from '@app/common/interfaces';
 import { ProjectEntity } from '../projects/entities/project.entity';
-import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()

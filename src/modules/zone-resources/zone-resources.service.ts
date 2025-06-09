@@ -5,7 +5,7 @@ import { ZoneResourceEntity } from './entities/zone-resource.entity';
 import { CreateZoneResourceDto } from './dto/create-zone-resource.dto';
 import { UpdateZoneResourceDto } from './dto/update-zone-resource.dto';
 import { ZonesService } from '../zones/zones.service';
-import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 import { DeviceExternalData } from '@app/common/interfaces';
 import { ResourceType } from '@Constant/enums';
