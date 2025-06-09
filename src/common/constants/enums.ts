@@ -49,6 +49,11 @@ export enum ProjectStatus {
   INACTIVE = 'inactive',
 }
 
+export enum ZoneStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+}
+
 export enum ResourceType {
   ELECTRIC = 'electric',
   WATER = 'water',

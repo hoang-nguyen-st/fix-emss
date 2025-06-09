@@ -3,7 +3,7 @@ import { MeterTypeEntity } from '@app/modules/meter-types/entities/meter-type.en
 import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
 import { ProjectEntity } from '@app/modules/projects/entities/project.entity';
 import { VoltageLevelEntity } from '@app/modules/voltage-levels/entities/voltage-level.entity';
-import { ZoneResourceEntity } from '@app/modules/zones/entities/zone-resource.entity';
+import { ZoneResourceEntity } from '@app/modules/zone-resources/entities/zone-resource.entity';
 import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';

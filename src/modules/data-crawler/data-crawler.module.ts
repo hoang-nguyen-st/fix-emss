@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { ProjectsModule } from '../projects/projects.module';
 import { ProjectUsersModule } from '../project-users/project-users.module';
 import { UsersModule } from '@UsersModule/users.module';
+import { ZonesModule } from '../zones/zones.module';
+import { ZoneResourcesModule } from '../zone-resources/zone-resources.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { UsersModule } from '@UsersModule/users.module';
     ProjectsModule,
     ProjectUsersModule,
     UsersModule,
+    ZonesModule,
+    ZoneResourcesModule,
   ],
   controllers: [DataCrawlerController],
   providers: [DataCrawlerService, ConfigService],

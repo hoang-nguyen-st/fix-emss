@@ -6,8 +6,11 @@ import { ConfigService } from '@nestjs/config';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectUsersService } from '../project-users/project-users.service';
 import { UsersService } from '@UsersModule/users.service';
-import { AccountExternalData, ProjectExternalData } from '@app/common/interfaces';
+import { AccountExternalData, DeviceExternalData, ProjectExternalData, ZoneExternalData } from '@app/common/interfaces';
 import { CronJob } from 'cron';
+import { ZonesService } from '../zones/zones.service';
+import { ZoneResourcesService } from '../zone-resources/zone-resources.service';
+import { ZONE_CONSTANTS } from '@Constant/zone';
 
 /**
  * Service responsible for crawling and synchronizing data from external API
@@ -24,16 +27,25 @@ export class DataCrawlerService {
     private readonly schedulerRegistry: SchedulerRegistry,
     private readonly projectsService: ProjectsService,
     private readonly projectUsersService: ProjectUsersService,
-    private readonly usersService: UsersService
+    private readonly usersService: UsersService,
+    private readonly zonesService: ZonesService,
+    private readonly zoneResourcesService: ZoneResourcesService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.accessToken = this.configService.get<string>('JWT_ACCESS_TOKEN_AMIGO');
   }
 
+  /**
+   * Initializes the module and sets up cron jobs
+   */
   onModuleInit() {
     this.setupCronJobs();
   }
 
+  /**
+   * Sets up cron jobs for data synchronization
+   * Configures jobs for projects, accounts, and devices based on environment variables
+   */
   private setupCronJobs() {
     const projectCronTime = this.configService.get<string>('PROJECT_CRON_TIME');
     const accountCronTime = this.configService.get<string>('ACCOUNT_CRON_TIME');
@@ -46,11 +58,17 @@ export class DataCrawlerService {
       this.crawlAccountData();
     });
 
+    const deviceJob = new CronJob(accountCronTime, () => {
+      this.crawlDeviceData();
+    });
+
     this.schedulerRegistry.addCronJob('projectJob', projectJob);
     this.schedulerRegistry.addCronJob('accountJob', accountJob);
+    this.schedulerRegistry.addCronJob('deviceJob', deviceJob);
 
     projectJob.start();
     accountJob.start();
+    deviceJob.start();
   }
 
   /**
@@ -62,7 +80,6 @@ export class DataCrawlerService {
   private async fetchData(endpoint: string): Promise<any> {
     const url = `${this.apiEndpoint}${endpoint}`;
     const headers = {
-      'Content-Type': 'application/json',
       Authorization: `Bearer ${this.accessToken}`,
     };
 
@@ -97,6 +114,46 @@ export class DataCrawlerService {
     const response = await this.fetchData(`/project/api/Project/Users?projectId=${projectId}&keyWord=&roleName=`);
     const rawAccounts = response?.data ?? [];
     return this.transformAndFilterAccounts(rawAccounts);
+  }
+
+  /**
+   * Fetches all devices and their zones for a specific project
+   * @param projectId - ID of the project to fetch devices for
+   * @returns Promise with object containing arrays of zones and devices
+   */
+  private async fetchDevicesInProject(projectId: string): Promise<{
+    zones: ZoneExternalData[];
+    devices: DeviceExternalData[];
+  }> {
+    const response = await this.fetchData(
+      `/iot/api/IoTSensor/GetSensorsByProjectUser?projectId=${projectId}&systemType=1`
+    );
+    const rawDevices = response?.data ?? [];
+    return this.transformAndFilterDevices(projectId, rawDevices);
+  }
+
+  /**
+   * Transforms and filters device data, extracting unique zones
+   * @param projectId - ID of the project the devices belong to
+   * @param devices - Array of raw device data
+   * @returns Object containing arrays of transformed zones and devices
+   */
+  private transformAndFilterDevices(
+    projectId: string,
+    devices: DeviceExternalData[]
+  ): {
+    zones: ZoneExternalData[];
+    devices: DeviceExternalData[];
+  } {
+    const zoneSet = new Set<string>();
+
+    for (const device of devices) {
+      const location = device.location ? device.location.trim() : ZONE_CONSTANTS.DEFAULT_NAME_ZONE;
+      zoneSet.add(location);
+    }
+
+    const zones: ZoneExternalData[] = Array.from(zoneSet).map((name) => ({ name, projectId }));
+    return { zones, devices };
   }
 
   /**
@@ -157,10 +214,34 @@ export class DataCrawlerService {
   }
 
   /**
-   * Manually triggers the crawling process for both projects and accounts
+   * Crawls and synchronizes device and zone data for all projects
+   * Runs based on ACCOUNT_CRON_TIME environment variable
+   */
+  public async crawlDeviceData() {
+    const t0 = performance.now();
+    this.logger.log('Starting data device crawling process...');
+    try {
+      const projects = await this.projectsService.findAll();
+      for (const project of projects) {
+        const { zones, devices } = await this.fetchDevicesInProject(project.id);
+        await this.zonesService.syncZonesData(zones);
+        await this.zoneResourcesService.syncZoneResourcesData(devices);
+      }
+      const t1 = performance.now();
+      this.logger.log(`crawlDeviceData took ${(t1 - t0).toFixed(2)} ms`);
+    } catch (error) {
+      this.logger.error('Error during data crawling:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Manually triggers the crawling process for projects, accounts, and devices
+   * This method can be called to force an immediate data synchronization
    */
   public async triggerCrawl(): Promise<void> {
     await this.crawlProjectData();
     await this.crawlAccountData();
+    await this.crawlDeviceData();
   }
 }

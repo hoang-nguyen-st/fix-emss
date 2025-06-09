@@ -6,7 +6,7 @@ import { ProjectEntity } from '../projects/entities/project.entity';
 import { UserEntity } from '@UsersModule/entities';
 import { UserRoleEnum } from '@Constant/enums';
 import { AccountExternalData } from '@app/common/interfaces';
-import { buildDataMapById } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
 import { UsersService } from '@UsersModule/users.service';
 
 @Injectable()
@@ -21,10 +21,10 @@ export class ProjectUsersService {
 
   async syncUsersDataToProject(project: ProjectEntity, externalUsers: AccountExternalData[]): Promise<void> {
     try {
-      const externalMap = buildDataMapById<AccountExternalData>(externalUsers);
+      const externalMap = buildDataMapByAttribute<AccountExternalData>(externalUsers);
       const existingMap = await this.getExistingProjectUserMap(project.id);
       const userData = await this.usersService.loadUserFromExternal(externalUsers);
-      const userMap = buildDataMapById<UserEntity>(userData);
+      const userMap = buildDataMapByAttribute<UserEntity>(userData);
 
       const { toInsert, toUpdate, toDelete } = this.diffProjectUsers(externalMap, existingMap, userMap, project);
 
@@ -40,7 +40,7 @@ export class ProjectUsersService {
       where: { project: { id: projectId } },
       relations: ['user'],
     });
-    return buildDataMapById<ProjectUserEntity>(existingRelations);
+    return buildDataMapByAttribute<ProjectUserEntity>(existingRelations);
   }
 
   private diffProjectUsers(

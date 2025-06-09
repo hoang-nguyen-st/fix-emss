@@ -18,7 +18,7 @@ import { UserDto } from './dto/user.dto';
 import { avtPathName, baseImageUrl } from '@Constant/url';
 import { AccountExternalData } from '@app/common/interfaces';
 import { ProjectEntity } from '../projects/entities/project.entity';
-import { buildDataMapById } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()
@@ -293,9 +293,9 @@ export class UsersService {
   }
 
   public async syncUsersData(project: ProjectEntity, externalUsers: AccountExternalData[]) {
-    const externalUserMap = buildDataMapById<AccountExternalData>(externalUsers);
+    const externalUserMap = buildDataMapByAttribute<AccountExternalData>(externalUsers);
     const users = await this.findUsersByProjectId(project.id);
-    const userMap = buildDataMapById<UserEntity>(users);
+    const userMap = buildDataMapByAttribute<UserEntity>(users);
 
     const { toAddOrUpdate, toDelete } = await classifyMapDifferences<AccountExternalData, UserEntity>(
       externalUserMap,

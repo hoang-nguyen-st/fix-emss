@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { ProjectEntity } from './entities/project.entity';
 import { ProjectExternalData } from '@app/common/interfaces';
-import { buildDataMapById } from '@app/helpers/buildDataMapById';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapById';
 import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()
@@ -23,10 +23,10 @@ export class ProjectsService {
     const projectIds = projects.map((p) => p.id);
     const existingProjects = await this.projectRepository.findBy({ id: In(projectIds) });
 
-    const externalMap = buildDataMapById(projects);
-    const dbMap = buildDataMapById(existingProjects);
+    const externalMap = buildDataMapByAttribute(projects);
+    const dbMap = buildDataMapByAttribute(existingProjects);
 
-    const { toAddOrUpdate, toDelete } = await classifyMapDifferences(
+    const { toAddOrUpdate, toDelete } = await classifyMapDifferences<ProjectExternalData, ProjectEntity>(
       externalMap,
       dbMap,
       this.isProjectChanged.bind(this),
