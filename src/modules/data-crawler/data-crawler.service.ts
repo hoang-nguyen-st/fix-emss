@@ -49,6 +49,7 @@ export class DataCrawlerService {
   private setupCronJobs() {
     const projectCronTime = this.configService.get<string>('PROJECT_CRON_TIME');
     const accountCronTime = this.configService.get<string>('ACCOUNT_CRON_TIME');
+    const deviceCronTime = this.configService.get<string>('DEVICE_CRON_TIME');
 
     const projectJob = new CronJob(projectCronTime, () => {
       this.crawlProjectData();
@@ -58,7 +59,7 @@ export class DataCrawlerService {
       this.crawlAccountData();
     });
 
-    const deviceJob = new CronJob(accountCronTime, () => {
+    const deviceJob = new CronJob(deviceCronTime, () => {
       this.crawlDeviceData();
     });
 
