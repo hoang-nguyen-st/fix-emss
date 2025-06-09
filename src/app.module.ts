@@ -32,6 +32,7 @@ import * as Joi from 'joi';
         JWT_ACCESS_TOKEN_AMIGO: Joi.string().required(),
         PROJECT_CRON_TIME: Joi.string().required(),
         ACCOUNT_CRON_TIME: Joi.string().required(),
+        DEVICE_CRON_TIME: Joi.string().required(),
       }),
     }),
     DatabaseModule,
