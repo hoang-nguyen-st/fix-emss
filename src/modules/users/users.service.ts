@@ -3,8 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { plainToClass } from 'class-transformer';
 import * as fs from 'fs';
-import { Not, Repository } from 'typeorm';
-
+import { Not, Repository, In } from 'typeorm';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { convertPath } from '@app/common/utils';
 import { StatusEnum } from '@Constant/enums';
@@ -17,6 +16,10 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
 import { avtPathName, baseImageUrl } from '@Constant/url';
+import { AccountExternalData } from '@app/common/interfaces';
+import { ProjectEntity } from '../projects/entities/project.entity';
+import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
+import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
 
 @Injectable()
 export class UsersService {
@@ -287,5 +290,43 @@ export class UsersService {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
     return user;
+  }
+
+  public async syncUsersData(project: ProjectEntity, externalUsers: AccountExternalData[]) {
+    const externalUserMap = buildDataMapByAttribute<AccountExternalData>(externalUsers);
+    const users = await this.findUsersByProjectId(project.id);
+    const userMap = buildDataMapByAttribute<UserEntity>(users);
+
+    const { toAddOrUpdate, toDelete } = await classifyMapDifferences<AccountExternalData, UserEntity>(
+      externalUserMap,
+      userMap,
+      this.isUserChanged.bind(this),
+      this.mapAccountDataToUserEntity.bind(this),
+      this.userRepository.create.bind(this.userRepository)
+    );
+    await persistEntityChanges(this.userRepository, toAddOrUpdate, toDelete);
+  }
+
+  private isUserChanged(user: UserEntity, account: AccountExternalData): boolean {
+    return user.email !== account.email || user.name !== account.nickName || user.phone !== account.phoneNumber;
+  }
+
+  public async mapAccountDataToUserEntity(account: AccountExternalData): Promise<Partial<UserEntity>> {
+    return {
+      id: account.id,
+      email: account.email,
+      name: account.nickName,
+      phone: account.phoneNumber,
+      status: StatusEnum.INACTIVE,
+    };
+  }
+
+  public async findUsersByProjectId(projectId: string): Promise<UserEntity[]> {
+    return this.userRepository.find({ where: { projectUsers: { project: { id: projectId } } } });
+  }
+
+  public async loadUserFromExternal(externalUsers: AccountExternalData[]): Promise<UserEntity[]> {
+    const userIds = externalUsers.map((u) => u.id);
+    return await this.userRepository.findBy({ id: In(userIds) });
   }
 }

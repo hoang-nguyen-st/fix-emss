@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, OneToMany } from 'typeorm';
 import { MeterTypeEntity } from '../../meter-types/entities/meter-type.entity';
 import { VoltageLevelEntity } from '../../voltage-levels/entities/voltage-level.entity';
-import { ZoneResourceEntity } from '../../zones/entities/zone-resource.entity';
+import { ZoneResourceEntity } from '../../zone-resources/entities/zone-resource.entity';
 import { AbstractEntity } from '@Entity/abstract.entity';
 import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
 

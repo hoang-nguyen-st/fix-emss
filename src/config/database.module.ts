@@ -3,13 +3,14 @@ import { MeterTypeEntity } from '@app/modules/meter-types/entities/meter-type.en
 import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
 import { ProjectEntity } from '@app/modules/projects/entities/project.entity';
 import { VoltageLevelEntity } from '@app/modules/voltage-levels/entities/voltage-level.entity';
-import { ZoneResourceEntity } from '@app/modules/zones/entities/zone-resource.entity';
+import { ZoneResourceEntity } from '@app/modules/zone-resources/entities/zone-resource.entity';
 import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TimeSlotsEntity } from '@app/modules/meter-types/entities/time-slots.entity';
 import { UserEntity } from '@UsersModule/entities';
+import { ProjectUserEntity } from '@app/modules/project-users/entities/project-users.entity';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UserEntity } from '@UsersModule/entities';
         entities: [
           UserEntity,
           ProjectEntity,
+          ProjectUserEntity,
           ZoneEntity,
           ZoneResourceEntity,
           MeterTypeEntity,

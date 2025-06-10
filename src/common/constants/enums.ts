@@ -1,6 +1,8 @@
 export enum StatusEnum {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
+  PENDING = 'pending',
+  BLOCKED = 'blocked',
 }
 
 export enum Order {
@@ -11,6 +13,12 @@ export enum Order {
 export enum SortEnum {
   ASC = 'ASC',
   DESC = 'DESC',
+}
+
+export enum UserRoleEnum {
+  ADMIN = 'Admin',
+  USER = 'User',
+  SUPER_ADMIN = 'Super Admin',
 }
 
 export enum InvoiceStatus {
@@ -37,6 +45,11 @@ export enum ProjectType {
 }
 
 export enum ProjectStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+}
+
+export enum ZoneStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
 }
