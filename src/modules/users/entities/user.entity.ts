@@ -9,7 +9,6 @@ import { ProjectUserEntity } from '@app/modules/project-users/entities/project-u
 
 @Entity('users')
 @Unique('UQ_users_email_deletedAt', ['email', 'deletedAt'])
-@Unique('UQ_users_phone_deletedAt', ['phone', 'deletedAt'])
 @Unique('UQ_users_identityId_deletedAt', ['identityId', 'deletedAt'])
 export class UserEntity extends AbstractEntity {
   @Column({ type: 'varchar', length: 255 })
