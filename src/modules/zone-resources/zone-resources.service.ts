@@ -109,11 +109,9 @@ export class ZoneResourcesService {
   private async mapZoneResourceDataToZoneResourceEntity(
     external: DeviceExternalData
   ): Promise<Partial<ZoneResourceEntity>> {
-    const zone = await this.zonesService.findOneByProjectIdAndName(external.projectId, external.location);
     return {
       ...external,
       resource: ResourceType.ELECTRIC,
-      zone,
     };
   }
 }

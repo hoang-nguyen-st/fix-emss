@@ -48,6 +48,9 @@ export class ZoneResourceEntity extends AbstractEntity {
   @Column({ type: 'boolean' })
   iot: boolean;
 
+  @Column({ type: 'varchar', nullable: true })
+  fieldCalculate: string;
+
   @ManyToOne(() => ZoneEntity, (zone) => zone.zoneResources)
   @JoinColumn({ name: 'zone_id' })
   zone: ZoneEntity;
