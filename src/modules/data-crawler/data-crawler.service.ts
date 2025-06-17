@@ -11,6 +11,8 @@ import { CronJob } from 'cron';
 import { ZonesService } from '../zones/zones.service';
 import { ZoneResourcesService } from '../zone-resources/zone-resources.service';
 import { ZONE_CONSTANTS } from '@Constant/zone';
+import * as qs from 'qs';
+import { GeminiService } from '../gemini/gemini.service';
 
 /**
  * Service responsible for crawling and synchronizing data from external API
@@ -19,7 +21,8 @@ import { ZONE_CONSTANTS } from '@Constant/zone';
 export class DataCrawlerService {
   private readonly logger = new Logger(DataCrawlerService.name);
   private readonly apiEndpoint: string;
-  private readonly accessToken: string;
+  private accessToken: string;
+  private isProjectCrawling = false;
 
   constructor(
     private readonly httpService: HttpService,
@@ -29,7 +32,8 @@ export class DataCrawlerService {
     private readonly projectUsersService: ProjectUsersService,
     private readonly usersService: UsersService,
     private readonly zonesService: ZonesService,
-    private readonly zoneResourcesService: ZoneResourcesService
+    private readonly zoneResourcesService: ZoneResourcesService,
+    private readonly geminiService: GeminiService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.accessToken = this.configService.get<string>('JWT_ACCESS_TOKEN_AMIGO');
@@ -52,7 +56,12 @@ export class DataCrawlerService {
     const deviceCronTime = this.configService.get<string>('DEVICE_CRON_TIME');
 
     const projectJob = new CronJob(projectCronTime, () => {
-      this.crawlProjectData();
+      if (!this.isProjectCrawling) {
+        this.isProjectCrawling = true;
+        this.crawlProjectData().finally(() => {
+          this.isProjectCrawling = false;
+        });
+      }
     });
 
     const accountJob = new CronJob(accountCronTime, () => {
@@ -68,8 +77,8 @@ export class DataCrawlerService {
     this.schedulerRegistry.addCronJob('deviceJob', deviceJob);
 
     projectJob.start();
-    accountJob.start();
-    deviceJob.start();
+    // accountJob.start();
+    // deviceJob.start();
   }
 
   /**
@@ -78,7 +87,11 @@ export class DataCrawlerService {
    * @returns Promise with the fetched data
    * @throws Error if the request fails
    */
+  private retryCount = 0;
   private async fetchData(endpoint: string): Promise<any> {
+    const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+    console.log('Retry count:', this.retryCount++);
+
     const url = `${this.apiEndpoint}${endpoint}`;
     const headers = {
       Authorization: `Bearer ${this.accessToken}`,
@@ -88,6 +101,26 @@ export class DataCrawlerService {
       const response = await firstValueFrom(this.httpService.get(url, { headers }));
       return response?.data ?? [];
     } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 500) {
+        this.logger.warn('Token expired or server error. Refreshing token and retrying...');
+
+        try {
+          const captchaText = await this.getVcToken();
+          const tokenResponse = await this.crawlAccessToken(captchaText);
+          console.log('tokenResponse', tokenResponse);
+          this.accessToken = tokenResponse.data.access_token;
+
+          // Wait for 5 seconds before retrying
+          this.logger.log('Waiting 5 seconds before retrying...');
+          await delay(5000);
+
+          return this.fetchData(endpoint);
+        } catch (refreshError) {
+          this.logger.error('Failed to refresh token:', refreshError.message);
+          throw refreshError;
+        }
+      }
+
       this.logger.error(`Failed to fetch data from ${endpoint}:`, error.message);
       throw error;
     }
@@ -232,6 +265,47 @@ export class DataCrawlerService {
       this.logger.log(`crawlDeviceData took ${(t1 - t0).toFixed(2)} ms`);
     } catch (error) {
       this.logger.error('Error during data crawling:', error.message);
+      throw error;
+    }
+  }
+
+  private async getVcToken() {
+    const url = `https://amigo.veep.vn/neurongateway/neuron/captcha?key=123123`;
+    const response = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
+    const base64 = Buffer.from(response.data).toString('base64');
+    const imageDataUrl = `data:image/png;base64,${base64}`;
+
+    const captchaText = await this.geminiService.readCaptcha(imageDataUrl);
+    this.logger.debug(`Captcha text: ${captchaText}`);
+
+    return captchaText;
+  }
+
+  private async crawlAccessToken(code: string) {
+    console.log('code', code);
+    const url = `https://amigo.veep.vn/neurongateway/neuron/oauth/token`;
+
+    const body = qs.stringify({
+      username: 'hoangnguyen',
+      password: 'Hoang@123',
+      vc_code: code,
+      vc_token: '123123',
+      tenant_code: '3000045',
+      grant_type: 'password',
+      client_id: 'client',
+      client_secret: 'client',
+      auth_type: 'vc',
+    });
+
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    try {
+      const response = await firstValueFrom(this.httpService.post(url, body, { headers }));
+      return response?.data ?? [];
+    } catch (error) {
+      this.logger.error(`Failed to fetch data from ${url}:`, error.message);
       throw error;
     }
   }
