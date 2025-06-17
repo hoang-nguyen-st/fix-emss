@@ -10,6 +10,7 @@ import { ProjectUsersModule } from '../project-users/project-users.module';
 import { UsersModule } from '@UsersModule/users.module';
 import { ZonesModule } from '../zones/zones.module';
 import { ZoneResourcesModule } from '../zone-resources/zone-resources.module';
+import { GeminiModule } from '../gemini/gemini.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ZoneResourcesModule } from '../zone-resources/zone-resources.module';
     UsersModule,
     ZonesModule,
     ZoneResourcesModule,
+    GeminiModule,
   ],
   controllers: [DataCrawlerController],
   providers: [DataCrawlerService, ConfigService],

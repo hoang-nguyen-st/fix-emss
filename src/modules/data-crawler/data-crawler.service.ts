@@ -11,6 +11,8 @@ import { CronJob } from 'cron';
 import { ZonesService } from '../zones/zones.service';
 import { ZoneResourcesService } from '../zone-resources/zone-resources.service';
 import { ZONE_CONSTANTS } from '@Constant/zone';
+import * as qs from 'qs';
+import { GeminiService } from '../gemini/gemini.service';
 
 /**
  * Service responsible for crawling and synchronizing data from external API
@@ -19,7 +21,9 @@ import { ZONE_CONSTANTS } from '@Constant/zone';
 export class DataCrawlerService {
   private readonly logger = new Logger(DataCrawlerService.name);
   private readonly apiEndpoint: string;
-  private readonly accessToken: string;
+  private accessToken: string;
+  private isCrawlingGlobal = false;
+  private readonly authConfig: Record<string, string>;
 
   constructor(
     private readonly httpService: HttpService,
@@ -29,10 +33,20 @@ export class DataCrawlerService {
     private readonly projectUsersService: ProjectUsersService,
     private readonly usersService: UsersService,
     private readonly zonesService: ZonesService,
-    private readonly zoneResourcesService: ZoneResourcesService
+    private readonly zoneResourcesService: ZoneResourcesService,
+    private readonly geminiService: GeminiService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.accessToken = this.configService.get<string>('JWT_ACCESS_TOKEN_AMIGO');
+    this.authConfig = {
+      username: this.configService.get<string>('AUTH_USERNAME'),
+      password: this.configService.get<string>('AUTH_PASSWORD'),
+      tenantCode: this.configService.get<string>('AUTH_TENANT_CODE'),
+      clientId: this.configService.get<string>('AUTH_CLIENT_ID'),
+      clientSecret: this.configService.get<string>('AUTH_CLIENT_SECRET'),
+      authType: this.configService.get<string>('AUTH_TYPE'),
+      grantType: this.configService.get<string>('AUTH_GRANT_TYPE'),
+    };
   }
 
   /**
@@ -46,32 +60,49 @@ export class DataCrawlerService {
    * Sets up cron jobs for data synchronization
    * Configures jobs for projects, accounts, and devices based on environment variables
    */
-  private setupCronJobs() {
-    const projectCronTime = this.configService.get<string>('PROJECT_CRON_TIME');
-    const accountCronTime = this.configService.get<string>('ACCOUNT_CRON_TIME');
-    const deviceCronTime = this.configService.get<string>('DEVICE_CRON_TIME');
+  private setupCronJobs(): void {
+    const jobs = [
+      {
+        name: 'projectJob',
+        time: this.configService.get<string>('PROJECT_CRON_TIME'),
+        task: () => this.crawlProjectData(),
+      },
+      {
+        name: 'accountJob',
+        time: this.configService.get<string>('ACCOUNT_CRON_TIME'),
+        task: () => this.crawlAccountData(),
+      },
+      {
+        name: 'deviceJob',
+        time: this.configService.get<string>('DEVICE_CRON_TIME'),
+        task: () => this.crawlDeviceData(),
+      },
+    ];
 
-    const projectJob = new CronJob(projectCronTime, () => {
-      this.crawlProjectData();
-    });
-
-    const accountJob = new CronJob(accountCronTime, () => {
-      this.crawlAccountData();
-    });
-
-    const deviceJob = new CronJob(deviceCronTime, () => {
-      this.crawlDeviceData();
-    });
-
-    this.schedulerRegistry.addCronJob('projectJob', projectJob);
-    this.schedulerRegistry.addCronJob('accountJob', accountJob);
-    this.schedulerRegistry.addCronJob('deviceJob', deviceJob);
-
-    projectJob.start();
-    accountJob.start();
-    deviceJob.start();
+    for (const { name, time, task } of jobs) {
+      const job = new CronJob(time, () => this.runExclusiveTask(name, task));
+      this.schedulerRegistry.addCronJob(name, job);
+      job.start();
+    }
   }
 
+  /**
+   * Runs a task exclusively to prevent concurrent execution
+   * @param taskName - Name of the task
+   * @param taskFn - Function to execute
+   */
+  private async runExclusiveTask(taskName: string, taskFn: () => Promise<any>) {
+    if (this.isCrawlingGlobal) return;
+    this.isCrawlingGlobal = true;
+    try {
+      this.logger.log(`[Cron] Start ${taskName}...`);
+      await taskFn();
+    } catch (err) {
+      this.logger.error(`[Cron] Error in ${taskName}`, err.message);
+    } finally {
+      this.isCrawlingGlobal = false;
+    }
+  }
   /**
    * Fetches data from the external API
    * @param endpoint - API endpoint to fetch data from
@@ -79,6 +110,7 @@ export class DataCrawlerService {
    * @throws Error if the request fails
    */
   private async fetchData(endpoint: string): Promise<any> {
+    const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
     const url = `${this.apiEndpoint}${endpoint}`;
     const headers = {
       Authorization: `Bearer ${this.accessToken}`,
@@ -88,6 +120,22 @@ export class DataCrawlerService {
       const response = await firstValueFrom(this.httpService.get(url, { headers }));
       return response?.data ?? [];
     } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 500) {
+        this.logger.warn('Token expired or server error. Refreshing token and retrying...');
+
+        try {
+          const captchaText = await this.getVcToken();
+          const tokenResponse = await this.crawlAccessToken(captchaText);
+          this.accessToken = tokenResponse.data.access_token;
+          this.logger.log('Waiting 5 seconds before retrying...');
+          await delay(5000);
+        } catch (refreshError) {
+          this.logger.error('Failed to refresh token:', refreshError.message);
+          await delay(5000);
+          return this.fetchData(endpoint);
+        }
+      }
+
       this.logger.error(`Failed to fetch data from ${endpoint}:`, error.message);
       throw error;
     }
@@ -98,7 +146,7 @@ export class DataCrawlerService {
    * @returns Promise with array of ProjectData
    */
   private async fetchProjects(): Promise<ProjectExternalData[]> {
-    const response = await this.fetchData('/project/api/Project/EnterprisePageList?pageSize=-1');
+    const response = await this.fetchData('/gateway/project/api/Project/EnterprisePageList?pageSize=-1');
     const rawProjects = response?.data?.data ?? [];
     return rawProjects.map((project: ProjectExternalData) => ({
       id: project.id,
@@ -112,7 +160,9 @@ export class DataCrawlerService {
    * @returns Promise with array of AccountData
    */
   private async fetchAccountInProject(projectId: string): Promise<AccountExternalData[]> {
-    const response = await this.fetchData(`/project/api/Project/Users?projectId=${projectId}&keyWord=&roleName=`);
+    const response = await this.fetchData(
+      `/gateway/project/api/Project/Users?projectId=${projectId}&keyWord=&roleName=`
+    );
     const rawAccounts = response?.data ?? [];
     return this.transformAndFilterAccounts(rawAccounts);
   }
@@ -127,7 +177,7 @@ export class DataCrawlerService {
     devices: DeviceExternalData[];
   }> {
     const response = await this.fetchData(
-      `/iot/api/IoTSensor/GetSensorsByProjectUser?projectId=${projectId}&systemType=1`
+      `/gateway/iot/api/IoTSensor/GetSensorsByProjectUser?projectId=${projectId}&systemType=1`
     );
     const rawDevices = response?.data ?? [];
     return this.transformAndFilterDevices(projectId, rawDevices);
@@ -178,10 +228,8 @@ export class DataCrawlerService {
    */
   public async crawlProjectData() {
     const t0 = performance.now();
-    this.logger.log('Starting data project crawling process...');
     try {
       const projects = await this.fetchProjects();
-      this.logger.log(`Extracted ${projects.length} projects`);
       await this.projectsService.createOrUpdateProjects(projects);
       const t1 = performance.now();
       this.logger.log(`crawlProjectData took ${(t1 - t0).toFixed(2)} ms`);
@@ -198,7 +246,6 @@ export class DataCrawlerService {
    */
   public async crawlAccountData() {
     const t0 = performance.now();
-    this.logger.log('Starting data account crawling process...');
     try {
       const projects = await this.projectsService.findAll();
       for (const project of projects) {
@@ -220,7 +267,6 @@ export class DataCrawlerService {
    */
   public async crawlDeviceData() {
     const t0 = performance.now();
-    this.logger.log('Starting data device crawling process...');
     try {
       const projects = await this.projectsService.findAll();
       for (const project of projects) {
@@ -232,6 +278,39 @@ export class DataCrawlerService {
       this.logger.log(`crawlDeviceData took ${(t1 - t0).toFixed(2)} ms`);
     } catch (error) {
       this.logger.error('Error during data crawling:', error.message);
+      throw error;
+    }
+  }
+
+  private async getVcToken() {
+    const captchaKey = this.configService.get<string>('CAPTCHA_KEY');
+    const url = `${this.apiEndpoint}/neurongateway/neuron/captcha?key=${captchaKey}`;
+    const response = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
+    const base64 = Buffer.from(response.data).toString('base64');
+    const imageDataUrl = `data:image/png;base64,${base64}`;
+    const captchaText = await this.geminiService.readCaptcha(imageDataUrl);
+    return captchaText;
+  }
+
+  private async crawlAccessToken(code: string) {
+    const url = `${this.apiEndpoint}/neurongateway/neuron/oauth/token`;
+    const body = qs.stringify({
+      username: this.authConfig.username,
+      password: this.authConfig.password,
+      vc_code: code,
+      vc_token: this.configService.get<string>('CAPTCHA_KEY'),
+      tenant_code: this.authConfig.tenantCode,
+      grant_type: this.authConfig.grantType,
+      client_id: this.authConfig.clientId,
+      client_secret: this.authConfig.clientSecret,
+      auth_type: this.authConfig.authType,
+    });
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    try {
+      const response = await firstValueFrom(this.httpService.post(url, body, { headers }));
+      return response?.data ?? [];
+    } catch (error) {
+      this.logger.error(`Failed to fetch data from ${url}:`, error.message);
       throw error;
     }
   }
