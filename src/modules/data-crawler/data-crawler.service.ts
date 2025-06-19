@@ -13,6 +13,7 @@ import { ZoneResourcesService } from '../zone-resources/zone-resources.service';
 import { ZONE_CONSTANTS } from '@Constant/zone';
 import * as qs from 'qs';
 import { GeminiService } from '../gemini/gemini.service';
+import { generateRandomString } from '@app/common/utils/randomStringUtils';
 
 /**
  * Service responsible for crawling and synchronizing data from external API
@@ -124,8 +125,8 @@ export class DataCrawlerService {
         this.logger.warn('Token expired or server error. Refreshing token and retrying...');
 
         try {
-          const captchaText = await this.getVcToken();
-          const tokenResponse = await this.crawlAccessToken(captchaText);
+          const { captchaText, captchaKey } = await this.getVcToken();
+          const tokenResponse = await this.crawlAccessToken(captchaText, captchaKey);
           this.accessToken = tokenResponse.data.access_token;
           this.logger.log('Waiting 5 seconds before retrying...');
           await delay(5000);
@@ -282,23 +283,35 @@ export class DataCrawlerService {
     }
   }
 
+  /**
+   * Retrieves a captcha image and generates a random key for authentication
+   * @returns Promise with object containing captcha text and generated key
+   * @throws Error if captcha retrieval or text recognition fails
+   */
   private async getVcToken() {
-    const captchaKey = this.configService.get<string>('CAPTCHA_KEY');
+    const captchaKey = generateRandomString(this.configService.get<string>('CAPTCHA_KEY'));
     const url = `${this.apiEndpoint}/neurongateway/neuron/captcha?key=${captchaKey}`;
     const response = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
     const base64 = Buffer.from(response.data).toString('base64');
     const imageDataUrl = `data:image/png;base64,${base64}`;
     const captchaText = await this.geminiService.readCaptcha(imageDataUrl);
-    return captchaText;
+    return { captchaText, captchaKey };
   }
 
-  private async crawlAccessToken(code: string) {
+  /**
+   * Exchanges captcha code and key for an access token using OAuth2 flow
+   * @param code - The captcha text recognized from the image
+   * @param captchaKey - The random key used to generate the captcha image
+   * @returns Promise with the OAuth token response containing access_token
+   * @throws Error if token exchange fails or authentication credentials are invalid
+   */
+  private async crawlAccessToken(code: string, captchaKey: string) {
     const url = `${this.apiEndpoint}/neurongateway/neuron/oauth/token`;
     const body = qs.stringify({
       username: this.authConfig.username,
       password: this.authConfig.password,
       vc_code: code,
-      vc_token: this.configService.get<string>('CAPTCHA_KEY'),
+      vc_token: captchaKey,
       tenant_code: this.authConfig.tenantCode,
       grant_type: this.authConfig.grantType,
       client_id: this.authConfig.clientId,
@@ -308,6 +321,7 @@ export class DataCrawlerService {
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     try {
       const response = await firstValueFrom(this.httpService.post(url, body, { headers }));
+
       return response?.data ?? [];
     } catch (error) {
       this.logger.error(`Failed to fetch data from ${url}:`, error.message);
