@@ -1,8 +1,9 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { AbstractEntity } from '@app/common/entities';
 import { DeviceTypeEnum, MeterTypeEnum, VoltageUnitEnum } from '@app/common/constants/enums';
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
+import { LocationDeviceEntity } from '@app/modules/location-devices/entities/location-device.entity';
 import { Expose } from 'class-transformer';
 
 @Entity('devices')
@@ -85,4 +86,7 @@ export class DeviceEntity extends AbstractEntity {
   @ManyToOne(() => LocationEntity)
   @JoinColumn({ name: 'location_id' })
   location: LocationEntity;
+
+  @OneToMany(() => LocationDeviceEntity, (locationDevice) => locationDevice.device)
+  locationDevices: LocationDeviceEntity[];
 }

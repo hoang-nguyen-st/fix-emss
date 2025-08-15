@@ -17,6 +17,7 @@ import { TariffTierEntity } from '@app/modules/tariff-tiers/entities/tariff-tier
 import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
 import { InvoiceDetailEntity } from '@app/modules/invoices/entities/invoice-detail.entity';
 import { PriceTypeLocationTypeEntity } from '@app/modules/price-types/entities/price-type-location-type.entity';
+import { LocationDeviceEntity } from '@app/modules/location-devices/entities/location-device.entity';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { PriceTypeLocationTypeEntity } from '@app/modules/price-types/entities/p
           InvoiceEntity,
           InvoiceDetailEntity,
           PriceTypeLocationTypeEntity,
+          LocationDeviceEntity,
         ],
       }),
       inject: [ConfigService],

@@ -20,6 +20,7 @@ import { PricingElectricRulesModule } from './modules/pricing-electric-rules/pri
 import { TariffTiersModule } from './modules/tariff-tiers/tariff-tiers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { WorkspaceUserModule } from './modules/workspace-user/workspace-user.module';
+import { LocationDeviceModule } from './modules/location-devices/location-device.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { WorkspaceUserModule } from './modules/workspace-user/workspace-user.mod
     PricingElectricRulesModule,
     TariffTiersModule,
     InvoicesModule,
+    LocationDeviceModule,
     DataCrawlerModule,
   ],
   providers: [

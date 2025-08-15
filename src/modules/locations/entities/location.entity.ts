@@ -6,6 +6,7 @@ import { UserEntity } from '@app/modules/users/entities/user.entity';
 import { LocationStatusEnum } from '@app/common/constants/enums';
 import { PriceTypeEntity } from '@app/modules/price-types/entities/price-type.entity';
 import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
+import { LocationDeviceEntity } from '@app/modules/location-devices/entities/location-device.entity';
 import { Expose } from 'class-transformer';
 
 @Entity('locations')
@@ -60,4 +61,7 @@ export class LocationEntity extends AbstractEntity {
 
   @OneToMany(() => InvoiceEntity, (invoice) => invoice.location)
   invoices: InvoiceEntity[];
+
+  @OneToMany(() => LocationDeviceEntity, (locationDevice) => locationDevice.location)
+  locationDevices: LocationDeviceEntity[];
 }
