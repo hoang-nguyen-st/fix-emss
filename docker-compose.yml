@@ -21,13 +21,14 @@ services:
     image: postgres:14.4-alpine
     container_name: ${APP_NAME}-db
     environment:
-      POSTGRES_DB: ${DB_POSTGRE_DATABASE}
-      POSTGRES_USER: ${DB_POSTGRE_USERNAME}
-      POSTGRES_PASSWORD: ${DB_POSTGRE_PASSWORD}
+      POSTGRES_DB: ${DB_POSTGRES_DATABASE}
+      POSTGRES_USER: ${DB_POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${DB_POSTGRES_PASSWORD}
     ports:
-      - 5432:${DB_POSTGRE_PORT}
+      - ${DB_POSTGRES_PORT}:5432
     volumes:
       - ems-data:/var/lib/postgresql/data
+      - ./init-unaccent.sql:/docker-entrypoint-initdb.d/init-unaccent.sql
     restart: unless-stopped
 
 volumes:

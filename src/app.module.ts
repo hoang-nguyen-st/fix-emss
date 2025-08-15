@@ -9,6 +9,18 @@ import { XMLMiddleware } from './common/middleware/xml.middleware';
 import { AuthModule } from './modules/auth/auth.module';
 import { DataCrawlerModule } from './modules/data-crawler/data-crawler.module';
 import * as Joi from 'joi';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { LocationTypesModule } from './modules/location-types/location-types.module';
+import { LocationsModule } from './modules/locations/locations.module';
+import { DevicesModule } from './modules/devices/devices.module';
+import { PriceTypesModule } from './modules/price-types/price-types.module';
+import { VoltageLevelsModule } from './modules/voltage-levels/voltage-levels.module';
+import { LocationTypeVoltageLevelsModule } from './modules/location-type-voltage-levels/location-type-voltage-levels.module';
+import { PricingElectricRulesModule } from './modules/pricing-electric-rules/pricing-electric-rules.module';
+import { TariffTiersModule } from './modules/tariff-tiers/tariff-tiers.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { WorkspaceUserModule } from './modules/workspace-user/workspace-user.module';
+import { LocationDeviceModule } from './modules/location-devices/location-device.module';
 
 @Module({
   imports: [
@@ -16,14 +28,13 @@ import * as Joi from 'joi';
     ConfigModule.forRoot({
       validationSchema: Joi.object({
         APP_PORT: Joi.number().required(),
-
-        DB_POSTGRE_HOST: Joi.string().required(),
-        DB_POSTGRE_PORT: Joi.number().required(),
-        DB_POSTGRE_USERNAME: Joi.string().required(),
-        DB_POSTGRE_PASSWORD: Joi.string().required(),
-        DB_POSTGRE_DATABASE: Joi.string().required(),
-        DB_POSTGRE_SYNCHRONIZE: Joi.boolean().required(),
-        DB_POSTGRE_LOGGING: Joi.boolean().required(),
+        DB_POSTGRES_HOST: Joi.string().required(),
+        DB_POSTGRES_PORT: Joi.number().required(),
+        DB_POSTGRES_USERNAME: Joi.string().required(),
+        DB_POSTGRES_PASSWORD: Joi.string().required(),
+        DB_POSTGRES_DATABASE: Joi.string().required(),
+        DB_POSTGRES_SYNCHRONIZE: Joi.boolean().required(),
+        DB_POSTGRES_LOGGING: Joi.boolean().required(),
         JWT_ACCESS_SECRETKEY: Joi.string().required(),
         JWT_ACCESS_EXPIRES: Joi.string().required(),
         JWT_REFRESH_SECRETKEY: Joi.string().required(),
@@ -48,6 +59,18 @@ import * as Joi from 'joi';
     DatabaseModule,
     UsersModule,
     AuthModule,
+    WorkspacesModule,
+    WorkspaceUserModule,
+    LocationTypesModule,
+    LocationsModule,
+    DevicesModule,
+    PriceTypesModule,
+    VoltageLevelsModule,
+    LocationTypeVoltageLevelsModule,
+    PricingElectricRulesModule,
+    TariffTiersModule,
+    InvoicesModule,
+    LocationDeviceModule,
     DataCrawlerModule,
   ],
   providers: [

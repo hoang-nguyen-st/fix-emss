@@ -1,15 +1,15 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
-import { Order } from '../constants';
+import { OrderEnum } from '@Constant/enums';
 
 export abstract class PageOptionsDto {
   @IsString()
   search?: string = '';
 
-  @IsEnum(Order)
+  @IsEnum(OrderEnum)
   @IsOptional()
-  order?: Order = Order.DESC;
+  order?: OrderEnum = OrderEnum.DESC;
 
   orderBy?: string = 'id';
 

@@ -3,12 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { plainToClass } from 'class-transformer';
 import * as fs from 'fs';
-import { Not, Repository, In } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
-import { convertPath } from '@app/common/utils';
-import { StatusEnum } from '@Constant/enums';
+import { convertPath, generateRandomPassword, getRandomNumber } from '@app/common/utils';
+import { UserRoleEnum, UserStatusEnum } from '@Constant/enums';
 import { ConfigService } from '@nestjs/config';
-import { CreateUserDto } from '@UsersModule/dto/create-user.dto';
 import { GetUsersDto } from '@UsersModule/dto/get-users.dto';
 import { UpdateUserDto } from '@UsersModule/dto/update-user.dto';
 import { UserEntity } from '@UsersModule/entities/user.entity';
@@ -16,34 +15,31 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
 import { avtPathName, baseImageUrl } from '@Constant/url';
-import { AccountExternalData } from '@app/common/interfaces';
-import { ProjectEntity } from '../projects/entities/project.entity';
-import { buildDataMapByAttribute } from '@app/helpers/buildDataMapByAttribute';
-import { classifyMapDifferences, persistEntityChanges } from '@app/common/utils';
+import { EmailService } from '../email/email.service';
+import { TokenService } from '../auth/services/token.service';
+import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
+import { LocationEntity } from '@app/modules/locations/entities/location.entity';
+import { UserUnAssignedDto } from './dto/user-unassigned.dto';
+import { UserStatisticsDataDto, UserStatusStatisticsDto } from './dto/user-statistics.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly configService: ConfigService,
-
+    private readonly emailService: EmailService,
+    private readonly tokenService: TokenService,
     @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>
+    private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(LocationEntity)
+    private readonly locationRepository: Repository<LocationEntity>
   ) {}
 
-  async create(avatar, params: CreateUserDto): Promise<ResponseItem<UserDto>> {
+  async create(params: CreateUserByAdminDto): Promise<ResponseItem<UserDto>> {
     const emailExisted = await this.userRepository.findOneBy({
       email: params.email,
       deletedAt: null,
     });
     if (emailExisted) throw new BadRequestException('Email đã tồn tại');
-
-    const identityIdExisted = await this.userRepository.findOneBy({
-      identityId: params.identityId,
-      deletedAt: null,
-    });
-    if (identityIdExisted) {
-      throw new BadRequestException('CMND/CCCD đã tồn tại');
-    }
 
     const existPhone = await this.userRepository.findOneBy({
       phone: params.phone,
@@ -51,16 +47,23 @@ export class UsersService {
     });
     if (existPhone) throw new BadRequestException('Số điện thoại đã tồn tại');
 
-    if (avatar) {
-      params = { ...params, avatar: avtPathName('users', avatar.filename) };
-    } else {
-      params = { ...params, avatar: null };
-    }
-
-    const userParams = this.userRepository.create(params);
+    const passwordLength = getRandomNumber(8, 10);
+    const password = generateRandomPassword(passwordLength);
+    const userDto = { ...params, password, status: UserStatusEnum.INACTIVE, role: UserRoleEnum.USER };
+    const userParams = this.userRepository.create(userDto);
     const user = await this.userRepository.save(userParams);
 
-    return new ResponseItem(user, 'Tạo mới dữ liệu thành công');
+    const activationToken = this.tokenService.generateActivationToken(user.id);
+
+    const sendEmailNewUserDto = {
+      name: user.name,
+      email: user.email,
+      password,
+      token: activationToken,
+    };
+    await this.emailService.sendActivationEmail(sendEmailNewUserDto);
+
+    return new ResponseItem(user, 'Tạo mới người dùng thành công', UserDto);
   }
 
   async resetPassword(id: string): Promise<ResponseItem<UserDto>> {
@@ -97,24 +100,103 @@ export class UsersService {
     return new ResponseItem(user, 'Thay đổi mật khẩu thành công');
   }
 
-  async getUsers(params: GetUsersDto): Promise<ResponsePaginate<UserDto>> {
-    const users = this.userRepository
-      .createQueryBuilder('users')
-      .where('users.status = ANY(:status)', {
-        status: params.status ? [params.status] : [StatusEnum.ACTIVE, StatusEnum.INACTIVE],
-      })
-      .andWhere('unaccent(LOWER(users.name)) LIKE unaccent(LOWER(:name))', {
+  async getUsers(params: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
+    const query = this.userRepository.createQueryBuilder('users');
+    if (params.status) {
+      query.where('users.status = ANY(:status)', {
+        status: [params.status],
+      });
+    }
+    if (params.startDate) {
+      const startDate = params.startDate.length <= 10 ? params.startDate + ' 00:00:00' : params.startDate;
+      query.andWhere('users.createdAt >= :startDate', { startDate });
+    }
+    if (params.endDate) {
+      const endDate = params.endDate.length <= 10 ? params.endDate + ' 23:59:59' : params.endDate;
+      query.andWhere('users.createdAt <= :endDate', { endDate });
+    }
+    if (params.search) {
+      query.andWhere('unaccent(LOWER(users.name)) LIKE unaccent(LOWER(:name))', {
         name: `%${params.search ?? ''}%`,
-      })
-      .orderBy(`users.${params.orderBy}`, params.order)
-      .skip(params.skip)
-      .take(params.take);
+      });
+    }
+    query.orderBy(`users.${params.orderBy}`, params.order);
+    query.skip(params.skip);
+    query.take(params.take);
 
-    const [result, total] = await users.getManyAndCount();
+    const [result, total] = await query.getManyAndCount();
+
+    const usersWithUnsignedStatus = await Promise.all(
+      result.map(async (user) => {
+        const userHasLocation = await this.checkUserHasLocation(user.id);
+        return {
+          ...user,
+          unAssigned: !userHasLocation,
+        };
+      })
+    );
 
     const pageMetaDto = new PageMetaDto({ itemCount: total, pageOptionsDto: params });
 
-    return new ResponsePaginate(result, pageMetaDto, 'Thành công');
+    return new ResponsePaginate(usersWithUnsignedStatus, pageMetaDto, 'Thành công', UserUnAssignedDto);
+  }
+
+  async getUserByType(): Promise<ResponseItem<UserStatisticsDataDto>> {
+    const totalUsers = await this.getTotalUsersCount();
+    const userStatsByStatus = await this.getUserStatsByStatus();
+    const unassignedUsersCount = await this.getUnassignedUsersCount();
+
+    const data = this.buildUserStatisticsData(userStatsByStatus, unassignedUsersCount);
+
+    return new ResponseItem({ data, total: totalUsers }, 'Thành công', UserStatisticsDataDto);
+  }
+
+  private async getTotalUsersCount(): Promise<number> {
+    return await this.userRepository.count({
+      where: { deletedAt: null },
+    });
+  }
+
+  private async getUserStatsByStatus(): Promise<UserStatusStatisticsDto[]> {
+    return await this.userRepository
+      .createQueryBuilder('user')
+      .select('user.status', 'status')
+      .addSelect('COUNT(user.id)', 'count')
+      .where('user.deletedAt IS NULL')
+      .groupBy('user.status')
+      .getRawMany();
+  }
+
+  private async getUnassignedUsersCount(): Promise<number> {
+    return await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.deletedAt IS NULL')
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('1')
+          .from('locations', 'location')
+          .where('location.user_id = user.id')
+          .getQuery();
+        return 'NOT EXISTS ' + subQuery;
+      })
+      .getCount();
+  }
+
+  private buildUserStatisticsData(
+    userStatsByStatus: UserStatusStatisticsDto[],
+    unassignedUsersCount: number
+  ): UserStatusStatisticsDto[] {
+    const data: UserStatusStatisticsDto[] = userStatsByStatus.map((stat) => ({
+      status: stat.status,
+      count: Number(stat.count),
+    }));
+
+    if (unassignedUsersCount > 0) {
+      data.push({ status: UserStatusEnum.UNASSIGNED, count: unassignedUsersCount });
+    }
+
+    return data;
   }
 
   async getUser(id: string): Promise<ResponseItem<UserDto>> {
@@ -122,7 +204,6 @@ export class UsersService {
       where: {
         id,
       },
-      relations: ['role', 'permissions'],
     });
     if (!user) throw new BadRequestException('Nhân viên không tồn tại');
 
@@ -137,11 +218,7 @@ export class UsersService {
       where: { id },
     });
 
-    const result = plainToClass(
-      ProfileDto,
-      { ...user, avatar: user.avatar ? baseImageUrl + convertPath(user.avatar) : null },
-      { excludeExtraneousValues: true }
-    );
+    const result = plainToClass(ProfileDto, { ...user }, { excludeExtraneousValues: true });
 
     return new ResponseItem(result, 'Thành công');
   }
@@ -150,15 +227,6 @@ export class UsersService {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) {
       throw new BadRequestException('Thông tin cá nhân không tồn tại');
-    }
-
-    const identityIdExisted = await this.userRepository.findOneBy({
-      identityId: updateUserDto.identityId,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (identityIdExisted) {
-      throw new BadRequestException('CMND/CCCD đã tồn tại');
     }
 
     const phoneExisted = await this.userRepository.findOneBy({
@@ -186,40 +254,6 @@ export class UsersService {
       throw new BadRequestException('Nhân viên không tồn tại');
     }
 
-    const emailExisted = await this.userRepository.findOneBy({
-      email: updateUserDto.email,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (emailExisted) throw new BadRequestException('Email đã tồn tại');
-
-    const identityIdExisted = await this.userRepository.findOneBy({
-      identityId: updateUserDto.identityId,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (identityIdExisted) {
-      throw new BadRequestException('CMND/CCCD đã tồn tại');
-    }
-
-    const phoneExisted = await this.userRepository.findOneBy({
-      phone: updateUserDto.phone,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (phoneExisted) {
-      throw new BadRequestException('Số điện thoại đã tồn tại');
-    }
-
-    const identityExisted = await this.userRepository.findOneBy({
-      identityId: updateUserDto.identityId,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (identityExisted) {
-      throw new BadRequestException('CMND/CCCD đã tồn tại');
-    }
-
     await this.userRepository.update(id, {
       ...user,
       ...plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true }),
@@ -233,15 +267,15 @@ export class UsersService {
   async deleteUser(id: string): Promise<ResponseItem<null>> {
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) throw new BadRequestException('Người dùng không tồn tại');
-    if (user.status === StatusEnum.ACTIVE) throw new BadRequestException('Không được xóa nhân viên đang hoạt động');
+    if (user.status === UserStatusEnum.ACTIVE) throw new BadRequestException('Không được xóa nhân viên đang hoạt động');
 
     await this.userRepository.softDelete(id);
 
     return new ResponseItem(null, 'Xóa nhân viên thành công');
   }
 
-  async uploadAvatar(identityId: string, file: Express.Multer.File): Promise<ResponseItem<any>> {
-    const user = await this.userRepository.findOneBy({ identityId, deletedAt: null });
+  async uploadAvatar(id: string, file: Express.Multer.File): Promise<ResponseItem<any>> {
+    const user = await this.userRepository.findOneBy({ id, deletedAt: null });
 
     if (!user) {
       throw new BadRequestException('Nhân viên không tồn tại');
@@ -253,7 +287,7 @@ export class UsersService {
       .set({
         avatar: avtPathName('users', file.filename),
       })
-      .where('identityId = :identityId', { identityId })
+      .where('id = :id', { id })
       .execute();
 
     if (fs.existsSync(user.avatar)) {
@@ -263,8 +297,8 @@ export class UsersService {
     return new ResponseItem(null, 'Cập nhật thông tin thành công');
   }
 
-  async removeAvatar(identityId: string): Promise<ResponseItem<any>> {
-    const user = await this.userRepository.findOneBy({ identityId, deletedAt: null });
+  async removeAvatar(id: string): Promise<ResponseItem<any>> {
+    const user = await this.userRepository.findOneBy({ id, deletedAt: null });
 
     if (!user) {
       throw new BadRequestException('Nhân viên không tồn tại');
@@ -276,7 +310,7 @@ export class UsersService {
       .set({
         avatar: null,
       })
-      .where('identityId = :identityId', { identityId })
+      .where('id = :id', { id })
       .execute();
 
     if (fs.existsSync(user.avatar)) {
@@ -292,41 +326,21 @@ export class UsersService {
     return user;
   }
 
-  public async syncUsersData(project: ProjectEntity, externalUsers: AccountExternalData[]) {
-    const externalUserMap = buildDataMapByAttribute<AccountExternalData>(externalUsers);
-    const users = await this.findUsersByProjectId(project.id);
-    const userMap = buildDataMapByAttribute<UserEntity>(users);
-
-    const { toAddOrUpdate, toDelete } = await classifyMapDifferences<AccountExternalData, UserEntity>(
-      externalUserMap,
-      userMap,
-      this.isUserChanged.bind(this),
-      this.mapAccountDataToUserEntity.bind(this),
-      this.userRepository.create.bind(this.userRepository)
-    );
-    await persistEntityChanges(this.userRepository, toAddOrUpdate, toDelete);
+  async findOne(id: string): Promise<UserEntity> {
+    const user = await this.userRepository.findOneBy({ id, deletedAt: null });
+    if (!user) throw new BadRequestException('Người dùng không tồn tại');
+    return user;
   }
 
-  private isUserChanged(user: UserEntity, account: AccountExternalData): boolean {
-    return user.email !== account.email || user.name !== account.nickName || user.phone !== account.phoneNumber;
-  }
-
-  public async mapAccountDataToUserEntity(account: AccountExternalData): Promise<Partial<UserEntity>> {
-    return {
-      id: account.id,
-      email: account.email,
-      name: account.nickName,
-      phone: account.phoneNumber,
-      status: StatusEnum.INACTIVE,
-    };
-  }
-
-  public async findUsersByProjectId(projectId: string): Promise<UserEntity[]> {
-    return this.userRepository.find({ where: { projectUsers: { project: { id: projectId } } } });
-  }
-
-  public async loadUserFromExternal(externalUsers: AccountExternalData[]): Promise<UserEntity[]> {
-    const userIds = externalUsers.map((u) => u.id);
-    return await this.userRepository.findBy({ id: In(userIds) });
+  /**
+   * Kiểm tra xem user có location hay không
+   * @param userId - ID của user cần kiểm tra
+   * @returns true nếu user có location, false nếu không có
+   */
+  private async checkUserHasLocation(userId: string): Promise<boolean> {
+    return await this.locationRepository
+      .createQueryBuilder('location')
+      .where('location.user.id = :userId', { userId })
+      .getExists();
   }
 }

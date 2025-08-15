@@ -1,4 +1,4 @@
-export interface ProjectExternalData {
+export interface WorkspaceExternalData {
   id: string;
   name: string;
 }
@@ -29,7 +29,7 @@ export interface DeviceExternalData {
   iot: boolean;
 }
 
-export interface ZoneExternalData {
-  projectId: string;
+export interface LocationExternalData {
+  workspaceId: string;
   name: string;
 }

@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -26,23 +27,32 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
 import { RequestCustom } from '@app/common/interfaces/request-custom';
+import { CreateUserDto } from './dto/create-user.dto';
+import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
+import { UserUnAssignedDto } from './dto/user-unassigned.dto';
+import { UserStatisticsDataDto } from './dto/user-statistics.dto';
 
+@ApiBearerAuth()
+@ApiTags('Users')
 @Controller('users')
 @UseGuards(JwtAccessTokenGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('avatar', fileOption('users')))
-  async create(
-    @UploadedFile()
-    avatar: Express.Multer.File,
-    @Body() createUserDto
-  ) {
-    if (!avatar && createUserDto.containFile === 'true') {
-      throw new BadRequestException('Hình ảnh không hợp lệ');
-    }
-    return await this.usersService.create(avatar, createUserDto);
+  @HttpCode(201)
+  @ApiCreatedResponse({ type: UserDto })
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiBody({ type: CreateUserDto })
+  @ApiResponse({
+    status: 201,
+    description: 'User created successfully',
+    type: ResponseItem<UserDto>,
+  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  async create(@Body() createUserDto: CreateUserByAdminDto): Promise<ResponseItem<UserDto>> {
+    return await this.usersService.create(createUserDto);
   }
 
   @Patch('reset-password/:id')
@@ -59,8 +69,19 @@ export class UsersController {
   }
 
   @Get()
-  async getUsers(@Query() getUsersDto: GetUsersDto): Promise<ResponsePaginate<UserDto>> {
+  async getUsers(@Query() getUsersDto: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
     return await this.usersService.getUsers(getUsersDto);
+  }
+
+  @Get('summarize')
+  @ApiOperation({ summary: 'Get user statistics by status' })
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics retrieved successfully',
+    type: UserStatisticsDataDto,
+  })
+  async getUserTypeStats(): Promise<ResponseItem<UserStatisticsDataDto>> {
+    return await this.usersService.getUserByType();
   }
 
   @Get('me')

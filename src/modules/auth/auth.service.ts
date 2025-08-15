@@ -6,7 +6,7 @@ import { Repository } from 'typeorm';
 
 import { UserEntity } from '@UsersModule/entities';
 import { CredentialsDto } from './dto/credentials.dto';
-import { StatusEnum } from '@Constant/enums';
+import { UserStatusEnum } from '@Constant/enums';
 import { UserPayloadDto } from './dto/user-payload.dto';
 import { JwtPayload } from '@Constant/types';
 import { ResponseItem } from '@app/common/dtos';
@@ -25,7 +25,7 @@ export class AuthService {
   async validateUser(credentialsDto: CredentialsDto): Promise<UserPayloadDto> {
     const user = await this.userRepository.findOneBy({
       email: credentialsDto.email,
-      status: StatusEnum.ACTIVE,
+      status: UserStatusEnum.ACTIVE,
       deletedBy: null,
     });
 
@@ -76,7 +76,7 @@ export class AuthService {
   async refreshToken(token: string): Promise<ResponseItem<TokenDto>> {
     const user = await this.userRepository.findOneBy({
       refreshToken: token,
-      status: StatusEnum.ACTIVE,
+      status: UserStatusEnum.ACTIVE,
       deletedBy: null,
     });
 
