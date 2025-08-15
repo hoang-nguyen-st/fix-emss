@@ -332,6 +332,11 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * Kiểm tra xem user có location hay không
+   * @param userId - ID của user cần kiểm tra
+   * @returns true nếu user có location, false nếu không có
+   */
   private async checkUserHasLocation(userId: string): Promise<boolean> {
     return await this.locationRepository
       .createQueryBuilder('location')
