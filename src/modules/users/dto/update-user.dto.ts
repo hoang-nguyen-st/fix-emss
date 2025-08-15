@@ -1,29 +1,29 @@
 import { Expose } from 'class-transformer';
-import { StatusEnum } from '@Constant/enums';
-import { IsNotEmpty } from 'class-validator';
+import { UserStatusEnum } from '@Constant/enums';
+import { IsOptional } from 'class-validator';
 
 export class UpdateUserDto {
   @Expose()
-  @IsNotEmpty()
+  @IsOptional()
   email: string;
 
   @Expose()
-  @IsNotEmpty()
+  @IsOptional()
   name: string;
 
   @Expose()
-  status: StatusEnum;
+  @IsOptional()
+  status: UserStatusEnum;
 
   @Expose()
-  @IsNotEmpty()
+  @IsOptional()
   phone: string;
 
   @Expose()
+  @IsOptional()
   address: string;
 
   @Expose()
+  @IsOptional()
   dateOfBirth: number;
-
-  @Expose()
-  identityId: string;
 }

@@ -1,17 +1,28 @@
 import { Entity, Column, OneToMany } from 'typeorm';
 import { AbstractEntity } from '@Entity/abstract.entity';
-import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
+import { LocationTypeVoltageLevelEntity } from '@app/modules/location-type-voltage-levels/entities/location-type-voltage-level.entity';
+import { VoltageLevelEnum } from '@Constant/enums';
+import { Expose } from 'class-transformer';
 
 @Entity('voltage_levels')
 export class VoltageLevelEntity extends AbstractEntity {
-  @Column({ type: 'varchar' })
+  @Expose()
+  @Column({ type: 'varchar', name: 'name' })
   name: string;
 
-  @Column({ type: 'numeric' })
+  @Expose()
+  @Column({ type: 'numeric', name: 'from_voltage' })
   fromVoltage: number;
-  @Column({ type: 'numeric' })
+
+  @Expose()
+  @Column({ type: 'numeric', name: 'to_voltage' })
   toVoltage: number;
 
-  @OneToMany(() => PricingElectricRuleEntity, (pricingElectricRule) => pricingElectricRule.voltageLevel)
-  pricingElectricRules: PricingElectricRuleEntity[];
+  @Expose()
+  @Column({ type: 'enum', enum: VoltageLevelEnum, name: 'voltage_level_enum' })
+  voltageLevelEnum: VoltageLevelEnum;
+
+  @Expose()
+  @OneToMany(() => LocationTypeVoltageLevelEntity, (ltvl) => ltvl.voltageLevel)
+  locationTypeVoltageLevels: LocationTypeVoltageLevelEntity[];
 }

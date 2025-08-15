@@ -1,10 +1,17 @@
-import { IsEnum, IsOptional } from 'class-validator';
-
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { PageOptionsDto } from '@app/common/dtos';
-import { StatusEnum } from '@Constant/enums';
+import { UserStatusEnum } from '@Constant/enums';
 
 export class GetUsersDto extends PageOptionsDto {
   @IsOptional()
-  @IsEnum(StatusEnum)
+  @IsEnum(UserStatusEnum)
   status;
+
+  @IsOptional()
+  @IsString()
+  startDate: string;
+
+  @IsOptional()
+  @IsString()
+  endDate: string;
 }

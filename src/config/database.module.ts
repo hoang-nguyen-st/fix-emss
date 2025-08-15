@@ -1,44 +1,55 @@
-import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
-import { MeterTypeEntity } from '@app/modules/meter-types/entities/meter-type.entity';
-import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
-import { ProjectEntity } from '@app/modules/projects/entities/project.entity';
-import { VoltageLevelEntity } from '@app/modules/voltage-levels/entities/voltage-level.entity';
-import { ZoneResourceEntity } from '@app/modules/zone-resources/entities/zone-resource.entity';
-import { ZoneEntity } from '@app/modules/zones/entities/zone.entity';
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TimeSlotsEntity } from '@app/modules/meter-types/entities/time-slots.entity';
-import { UserEntity } from '@UsersModule/entities';
-import { ProjectUserEntity } from '@app/modules/project-users/entities/project-users.entity';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+
+import { UserEntity } from '@app/modules/users/entities/user.entity';
+import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
+import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
+import { LocationTypeEntity } from '@app/modules/location-types/entities/location-type.entity';
+import { LocationEntity } from '@app/modules/locations/entities/location.entity';
+import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
+import { PriceTypeEntity } from '@app/modules/price-types/entities/price-type.entity';
+import { TimeSlotEntity } from '@app/modules/price-types/entities/time-slot.entity';
+import { VoltageLevelEntity } from '@app/modules/voltage-levels/entities/voltage-level.entity';
+import { LocationTypeVoltageLevelEntity } from '@app/modules/location-type-voltage-levels/entities/location-type-voltage-level.entity';
+import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
+import { TariffTierEntity } from '@app/modules/tariff-tiers/entities/tariff-tier.entity';
+import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
+import { InvoiceDetailEntity } from '@app/modules/invoices/entities/invoice-detail.entity';
+import { PriceTypeLocationTypeEntity } from '@app/modules/price-types/entities/price-type-location-type.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.get<string>('DB_POSTGRE_HOST'),
-        port: configService.get<number>('DB_POSTGRE_PORT'),
-        database: configService.get<string>('DB_POSTGRE_DATABASE'),
-        username: configService.get<string>('DB_POSTGRE_USERNAME'),
-        password: configService.get<string>('DB_POSTGRE_PASSWORD'),
-        synchronize: configService.get<boolean>('DB_POSTGRE_SYNCHRONIZE'),
-        logging: configService.get<boolean>('DB_POSTGRE_LOGGING'),
+        host: configService.get('DB_POSTGRES_HOST'),
+        port: configService.get('DB_POSTGRES_PORT'),
+        username: configService.get('DB_POSTGRES_USERNAME'),
+        password: configService.get('DB_POSTGRES_PASSWORD'),
+        database: configService.get('DB_POSTGRES_DATABASE'),
+        synchronize: configService.get('DB_POSTGRES_SYNCHRONIZE'),
+        logging: configService.get('DB_POSTGRES_LOGGING'),
         entities: [
           UserEntity,
-          ProjectEntity,
-          ProjectUserEntity,
-          ZoneEntity,
-          ZoneResourceEntity,
-          MeterTypeEntity,
-          PricingElectricRuleEntity,
+          WorkspaceEntity,
+          WorkspaceUserEntity,
+          LocationTypeEntity,
+          LocationEntity,
+          DeviceEntity,
+          PriceTypeEntity,
+          TimeSlotEntity,
           VoltageLevelEntity,
+          LocationTypeVoltageLevelEntity,
+          PricingElectricRuleEntity,
+          TariffTierEntity,
           InvoiceEntity,
-          TimeSlotsEntity,
+          InvoiceDetailEntity,
+          PriceTypeLocationTypeEntity,
         ],
       }),
+      inject: [ConfigService],
     }),
   ],
 })

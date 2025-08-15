@@ -3,3 +3,5 @@ export * from './types';
 export * from './regex';
 export * from './format';
 export * from './url';
+export * from './timestamp';
+export * from './location';
