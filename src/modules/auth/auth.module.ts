@@ -10,6 +10,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtAccessTokenStrategy } from './strategies/jwt-access-token.strategy';
 import { UserEntity } from '@UsersModule/entities';
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh-token.strategy';
+import { TokenService } from './services/token.service';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh-token.strategy
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtAccessTokenStrategy, JwtRefreshTokenStrategy, ConfigService],
+  providers: [AuthService, LocalStrategy, JwtAccessTokenStrategy, JwtRefreshTokenStrategy, ConfigService, TokenService],
   exports: [AuthService],
 })
 export class AuthModule {}
