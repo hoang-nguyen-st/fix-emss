@@ -16,7 +16,9 @@ export class WorkspacesService {
   async findAll(params: GetWorkspacesDto): Promise<ResponsePaginate<WorkspaceDto>> {
     const query = this.workspaceRepository.createQueryBuilder('workspaces');
     if (params.search) {
-      query.andWhere('workspaces.name ILIKE :search', { search: `%${params.search}%` });
+      query.andWhere('unaccent(LOWER(workspaces.name)) LIKE unaccent(LOWER(:search))', {
+        search: `%${params.search}%`,
+      });
     }
     query.orderBy(`workspaces.${params.orderBy}`, params.order);
     query.skip(params.skip);
