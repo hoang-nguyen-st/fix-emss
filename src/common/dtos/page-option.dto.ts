@@ -11,7 +11,8 @@ export abstract class PageOptionsDto {
   @IsOptional()
   order?: OrderEnum = OrderEnum.DESC;
 
-  orderBy?: string = 'id';
+  @IsOptional()
+  orderBy?: string = 'createdAt';
 
   @Type(() => Number)
   @IsInt()
