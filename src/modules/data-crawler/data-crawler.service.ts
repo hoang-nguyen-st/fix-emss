@@ -6,10 +6,14 @@ import * as qs from 'qs';
 import { GeminiService } from '../gemini/gemini.service';
 import { generateRandomString } from '@app/common/utils/randomStringUtils';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
+import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
+import { AmigoApiResponseDto, AmigoSensorDto, AmigoProjectApiResponseDto, AmigoProjectDto } from './dto';
+import { plainToInstance } from 'class-transformer';
+import { DeviceTypeEnum } from '@app/common/constants/enums';
 
-/**
- * Service responsible for authentication and getting access token
- */
 @Injectable()
 export class DataCrawlerService {
   private readonly logger = new Logger(DataCrawlerService.name);
@@ -21,7 +25,11 @@ export class DataCrawlerService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-    private readonly geminiService: GeminiService
+    private readonly geminiService: GeminiService,
+    @InjectRepository(DeviceEntity)
+    private readonly deviceRepository: Repository<DeviceEntity>,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepository: Repository<WorkspaceEntity>
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.authConfig = {
@@ -33,13 +41,10 @@ export class DataCrawlerService {
       authType: this.configService.get<string>('AUTH_TYPE'),
       grantType: this.configService.get<string>('AUTH_GRANT_TYPE'),
     };
-    // Initialize access token on service creation
     this.initializeAccessToken();
+    this.initializeAutoSync();
   }
 
-  /**
-   * Initialize access token when service starts
-   */
   private async initializeAccessToken(): Promise<void> {
     try {
       this.logger.log('Initializing access token...');
@@ -50,10 +55,58 @@ export class DataCrawlerService {
     }
   }
 
-  /**
-   * Cron job to refresh access token every 23 hours
-   * Only runs if no valid token exists
-   */
+  private async initializeAutoSync(): Promise<void> {
+    try {
+      this.logger.log('Starting auto-sync initialization...');
+
+      setTimeout(async () => {
+        try {
+          this.logger.log('Auto-sync starting...');
+          await this.syncAllDevicesFromProjects();
+          this.logger.log('Auto-sync completed successfully');
+        } catch (error) {
+          this.logger.error('Auto-sync failed:', error.message);
+        }
+      }, 10000);
+    } catch (error) {
+      this.logger.error('Failed to initialize auto-sync:', error.message);
+    }
+  }
+
+  public async getSyncStatus(): Promise<{
+    success: boolean;
+    message: string;
+    workspaceCount: number;
+    deviceCount: number;
+    lastSyncTime?: Date;
+    nextSyncTime?: Date;
+  }> {
+    try {
+      const workspaces = await this.workspaceRepository.find();
+      const devices = await this.deviceRepository.find();
+
+      const now = new Date();
+      const nextSync = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+
+      return {
+        success: true,
+        message: 'Sync status retrieved successfully',
+        workspaceCount: workspaces.length,
+        deviceCount: devices.length,
+        lastSyncTime: now,
+        nextSyncTime: nextSync,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get sync status:', error.message);
+      return {
+        success: false,
+        message: `Failed to get sync status: ${error.message}`,
+        workspaceCount: 0,
+        deviceCount: 0,
+      };
+    }
+  }
+
   @Cron(CronExpression.EVERY_10_SECONDS)
   async scheduledRefreshAccessToken(): Promise<void> {
     if (!this.accessToken && !this.isRefreshing) {
@@ -72,9 +125,17 @@ export class DataCrawlerService {
     }
   }
 
-  /**
-   * Get current access token (from memory or refresh if needed)
-   */
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async scheduledAutoSync(): Promise<void> {
+    try {
+      this.logger.log('Starting scheduled auto-sync...');
+      await this.syncAllDevicesFromProjects();
+      this.logger.log('Scheduled auto-sync completed successfully');
+    } catch (error) {
+      this.logger.error('Scheduled auto-sync failed:', error.message);
+    }
+  }
+
   public async getCurrentAccessToken(): Promise<string> {
     if (!this.accessToken) {
       this.logger.log('No access token available, fetching new one...');
@@ -83,9 +144,6 @@ export class DataCrawlerService {
     return this.accessToken;
   }
 
-  /**
-   * Force refresh access token (called when token expires)
-   */
   public async forceRefreshAccessToken(): Promise<string> {
     try {
       this.logger.log('Force refreshing access token due to expiration...');
@@ -101,10 +159,6 @@ export class DataCrawlerService {
     }
   }
 
-  /**
-   * Check if token is valid by making a test API call
-   * If token expires, automatically refresh it
-   */
   public async validateAndGetToken(): Promise<string> {
     if (!this.accessToken) {
       return this.getCurrentAccessToken();
@@ -121,11 +175,6 @@ export class DataCrawlerService {
     }
   }
 
-  /**
-   * Retrieves a captcha image and generates a random key for authentication
-   * @returns Promise with object containing captcha text and generated key
-   * @throws Error if captcha retrieval or text recognition fails
-   */
   private async getVcToken() {
     const captchaKey = generateRandomString(this.configService.get<string>('CAPTCHA_KEY'));
     const url = `${this.apiEndpoint}/neurongateway/neuron/captcha?key=${captchaKey}`;
@@ -136,13 +185,6 @@ export class DataCrawlerService {
     return { captchaText, captchaKey };
   }
 
-  /**
-   * Exchanges captcha code and key for an access token using OAuth2 flow
-   * @param code - The captcha text recognized from the image
-   * @param captchaKey - The random key used to generate the captcha image
-   * @returns Promise with the OAuth token response containing access_token
-   * @throws Error if token exchange fails or authentication credentials are invalid
-   */
   private async crawlAccessToken(code: string, captchaKey: string) {
     const url = `${this.apiEndpoint}/neurongateway/neuron/oauth/token`;
     const body = qs.stringify({
@@ -167,10 +209,6 @@ export class DataCrawlerService {
     }
   }
 
-  /**
-   * Main method to get access token by solving captcha and authenticating
-   * @returns Promise with the access token
-   */
   public async getAccessToken(): Promise<string> {
     try {
       const { captchaText, captchaKey } = await this.getVcToken();
@@ -178,6 +216,231 @@ export class DataCrawlerService {
       return tokenResponse.data.access_token;
     } catch (error) {
       this.logger.error('Failed to get access token:', error.message);
+      throw error;
+    }
+  }
+
+  public async getSensorsAndSync(
+    projectId: string,
+    systemType: number
+  ): Promise<{ success: boolean; message: string; syncedCount: number }> {
+    try {
+      const accessToken = await this.getCurrentAccessToken();
+
+      const url = `https://amigo.veep.vn/gateway/iot/api/IoTSensor/GetSensorsByProjectUser`;
+      const params = { projectId, systemType };
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const apiResponse = plainToInstance(AmigoApiResponseDto, response.data);
+
+      if (!apiResponse.isSuccess || apiResponse.code !== 0) {
+        throw new Error(`API call failed: ${apiResponse.message}`);
+      }
+
+      const syncedCount = await this.syncSensorsToDatabase(apiResponse.data, projectId);
+
+      return {
+        success: true,
+        message: `Successfully synced ${syncedCount} sensors`,
+        syncedCount,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get sensors and sync for project ${projectId}:`, error.message);
+      throw error;
+    }
+  }
+
+  private async syncSensorsToDatabase(sensors: AmigoSensorDto[], projectId: string): Promise<number> {
+    let syncedCount = 0;
+
+    for (const sensor of sensors) {
+      try {
+        const existingDevice = await this.deviceRepository.findOne({
+          where: { devEUI: sensor.devEUI },
+        });
+
+        if (existingDevice) {
+          existingDevice.name = sensor.name;
+          existingDevice.description = sensor.description;
+          existingDevice.deviceType = this.mapDeviceType(sensor.dataType);
+          existingDevice.status = true;
+          existingDevice.initialIndex = 0;
+          existingDevice.currentIndex = 0;
+          existingDevice.periodStartIndex = 0;
+          existingDevice.workspaceId = projectId;
+
+          await this.deviceRepository.save(existingDevice);
+        } else {
+          const newDevice = this.deviceRepository.create({
+            devEUI: sensor.devEUI,
+            name: sensor.name,
+            description: sensor.description,
+            deviceType: this.mapDeviceType(sensor.dataType),
+            status: true,
+            initialIndex: 0,
+            currentIndex: 0,
+            periodStartIndex: 0,
+            workspaceId: projectId,
+            createdBy: 'amigo',
+            updatedBy: 'amigo',
+          } as DeviceEntity);
+
+          await this.deviceRepository.save(newDevice);
+        }
+
+        syncedCount++;
+      } catch (error) {
+        this.logger.error(`Failed to sync sensor ${sensor.devEUI}:`, error.message);
+      }
+    }
+
+    return syncedCount;
+  }
+
+  private mapDeviceType(dataType: string): DeviceTypeEnum {
+    switch (dataType.toLowerCase()) {
+      case 'iot':
+        return DeviceTypeEnum.ELECTRIC;
+      case 'electric':
+        return DeviceTypeEnum.ELECTRIC;
+      case 'water':
+        return DeviceTypeEnum.WATER;
+      case 'gas':
+        return DeviceTypeEnum.GAS;
+      default:
+        return DeviceTypeEnum.ELECTRIC;
+    }
+  }
+
+  public async syncAllProjects(): Promise<{ success: boolean; message: string; syncedCount: number }> {
+    try {
+      this.logger.log('Fetching all projects from Amigo API...');
+
+      const accessToken = await this.getCurrentAccessToken();
+
+      const url = `https://amigo.veep.vn/gateway/project/api/Project/EnterprisePageList`;
+      const params = { pageSize: -1 };
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+      const apiResponse = plainToInstance(AmigoProjectApiResponseDto, response.data);
+
+      if (!apiResponse.isSuccess) {
+        throw new Error(`API call failed: ${apiResponse.message}`);
+      }
+
+      const syncedCount = await this.syncProjectsToDatabase(apiResponse.data.data);
+
+      this.logger.log(`Successfully synced ${syncedCount} projects`);
+
+      return {
+        success: true,
+        message: `Successfully synced ${syncedCount} projects`,
+        syncedCount,
+      };
+    } catch (error) {
+      this.logger.error('Failed to sync projects:', error.message);
+      throw error;
+    }
+  }
+
+  private async syncProjectsToDatabase(projects: AmigoProjectDto[]): Promise<number> {
+    let syncedCount = 0;
+
+    for (const project of projects) {
+      try {
+        const existingWorkspace = await this.workspaceRepository.findOne({
+          where: { id: project.id },
+        });
+
+        if (existingWorkspace) {
+          existingWorkspace.name = project.name;
+          existingWorkspace.updatedBy = 'amigo';
+
+          await this.workspaceRepository.save(existingWorkspace);
+        } else {
+          const newWorkspace = this.workspaceRepository.create({
+            id: project.id,
+            name: project.name,
+            createdBy: 'amigo',
+            updatedBy: 'amigo',
+          } as WorkspaceEntity);
+
+          await this.workspaceRepository.save(newWorkspace);
+        }
+
+        syncedCount++;
+      } catch (error) {
+        this.logger.error(`Failed to sync project ${project.name}:`, error.message);
+      }
+    }
+
+    return syncedCount;
+  }
+
+  public async syncAllDevicesFromProjects(): Promise<{ success: boolean; message: string; totalSyncedCount: number }> {
+    try {
+      this.logger.log('Starting full sync: projects and devices...');
+
+      const projectResult = await this.syncAllProjects();
+      if (!projectResult.success) {
+        throw new Error('Failed to sync projects');
+      }
+
+      const accessToken = await this.getCurrentAccessToken();
+      const url = `https://amigo.veep.vn/gateway/project/api/Project/EnterprisePageList`;
+      const params = { pageSize: -1 };
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const apiResponse = plainToInstance(AmigoProjectApiResponseDto, response.data);
+      if (!apiResponse.isSuccess) {
+        throw new Error(`Failed to fetch projects for device sync: ${apiResponse.message}`);
+      }
+
+      let totalDeviceCount = 0;
+      for (const project of apiResponse.data.data) {
+        try {
+          const deviceResult = await this.getSensorsAndSync(project.id, 1);
+          if (deviceResult.success) {
+            totalDeviceCount += deviceResult.syncedCount;
+          }
+        } catch (error) {
+          this.logger.error(`Failed to sync devices for project ${project.name}:`, error.message);
+        }
+      }
+
+      return {
+        success: true,
+        message: `Full sync completed. Projects: ${projectResult.syncedCount}, Total devices: ${totalDeviceCount}`,
+        totalSyncedCount: totalDeviceCount,
+      };
+    } catch (error) {
+      this.logger.error('Failed to perform full sync:', error.message);
       throw error;
     }
   }
