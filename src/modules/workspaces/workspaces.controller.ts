@@ -1,7 +1,10 @@
-import { Controller, Get, Delete, Param } from '@nestjs/common';
+import { Controller, Get, Delete, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { WorkspacesService } from './workspaces.service';
+import { GetWorkspacesDto } from './dto/get-workspace.dto';
+import { WorkspaceDto } from './dto/workspace.dto';
+import { ResponsePaginate } from '@app/common/dtos';
 
 @ApiTags('Workspaces')
 @Controller('workspaces')
@@ -11,8 +14,8 @@ export class WorkspacesController {
   @Get()
   @ApiOperation({ summary: 'Get all workspaces' })
   @ApiResponse({ status: 200, description: 'Return all workspaces', type: [WorkspaceEntity] })
-  async findAll(): Promise<WorkspaceEntity[]> {
-    return this.workspacesService.findAll();
+  async findAll(@Query() params: GetWorkspacesDto): Promise<ResponsePaginate<WorkspaceDto>> {
+    return this.workspacesService.findAll(params);
   }
 
   @Get(':id')
