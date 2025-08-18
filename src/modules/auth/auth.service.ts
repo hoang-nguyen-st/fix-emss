@@ -1,9 +1,7 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-
 import { UserEntity } from '@UsersModule/entities';
 import { CredentialsDto } from './dto/credentials.dto';
 import { UserStatusEnum } from '@Constant/enums';
@@ -11,29 +9,65 @@ import { UserPayloadDto } from './dto/user-payload.dto';
 import { JwtPayload } from '@Constant/types';
 import { ResponseItem } from '@app/common/dtos';
 import { TokenDto } from './dto/token.dto';
-import { ConfigService } from '@nestjs/config';
+import { TokenService } from './services/token.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly tokenService: TokenService,
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>
   ) {}
 
   async validateUser(credentialsDto: CredentialsDto): Promise<UserPayloadDto> {
+    const { email, password } = credentialsDto;
+
+    const user = await this.findUserByEmail(email);
+
+    this.validateUserStatus(user);
+
+    this.validatePassword(password, user.password);
+
+    return this.createUserPayload(user);
+  }
+
+  private async findUserByEmail(email: string): Promise<UserEntity> {
     const user = await this.userRepository.findOneBy({
-      email: credentialsDto.email,
+      email,
       status: UserStatusEnum.ACTIVE,
       deletedBy: null,
     });
 
-    if (!user) throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
+    if (!user) {
+      throw new UnauthorizedException('Tài khoản không tồn tại');
+    }
 
-    const comparePassword = bcrypt.compareSync(credentialsDto.password, user.password);
-    if (!comparePassword) throw new UnauthorizedException('Tài khoản hoặc mật khẩu không đúng');
+    return user;
+  }
 
+  private validateUserStatus(user: UserEntity): void {
+    switch (user.status) {
+      case UserStatusEnum.PENDING:
+        throw new UnauthorizedException('Tài khoản chưa được kích hoạt');
+      case UserStatusEnum.BLOCKED:
+        throw new UnauthorizedException('Tài khoản đã bị khóa');
+      case UserStatusEnum.ACTIVE:
+      case UserStatusEnum.INACTIVE:
+        return;
+      default:
+        throw new UnauthorizedException('Tài khoản không tồn tại');
+    }
+  }
+
+  private validatePassword(inputPassword: string, hashedPassword: string): void {
+    const isPasswordValid = bcrypt.compareSync(inputPassword, hashedPassword);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mật khẩu không đúng');
+    }
+  }
+
+  private createUserPayload(user: UserEntity): UserPayloadDto {
     return {
       id: user.id,
       email: user.email,
@@ -44,14 +78,8 @@ export class AuthService {
   async login(userPayloadDto: UserPayloadDto): Promise<ResponseItem<TokenDto>> {
     const payload: JwtPayload = { sub: userPayloadDto.id, email: userPayloadDto.email };
 
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRETKEY'),
-      expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES'),
-    });
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRETKEY'),
-      expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES'),
-    });
+    const refreshToken = this.tokenService.generateRefreshToken(payload);
+    const accessToken = this.tokenService.generateAccessToken(payload);
 
     await this.userRepository.update(userPayloadDto.id, { refreshToken });
 
@@ -64,13 +92,13 @@ export class AuthService {
     return new ResponseItem(data, 'Đăng nhập thành công');
   }
 
-  async logout(userId: string) {
+  async logout(userId: string): Promise<ResponseItem<null>> {
     const logout = await this.userRepository.update(userId, { refreshToken: null });
     if (!logout) {
       throw new BadRequestException('Đăng xuất không thành công');
     }
 
-    return new ResponseItem('', 'Đăng xuất thành công');
+    return new ResponseItem(null, 'Đăng xuất thành công');
   }
 
   async refreshToken(token: string): Promise<ResponseItem<TokenDto>> {
@@ -84,12 +112,30 @@ export class AuthService {
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const data = {
-      accessToken: this.jwtService.sign(payload, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRETKEY'),
-        expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES'),
-      }),
+      accessToken: this.tokenService.generateAccessToken(payload),
     };
 
     return new ResponseItem(data, 'Làm mới token thành công');
+  }
+
+  async activateAccount(token: string): Promise<ResponseItem<null>> {
+    try {
+      const userId = this.tokenService.verifyActivationToken(token);
+
+      const user = await this.userRepository.findOneBy({ id: userId });
+      if (!user) {
+        throw new BadRequestException('Người dùng không tồn tại');
+      }
+
+      if (user.status === UserStatusEnum.ACTIVE) {
+        throw new BadRequestException('Tài khoản đã được kích hoạt trước đó');
+      }
+
+      await this.userRepository.update(user.id, { status: UserStatusEnum.ACTIVE });
+
+      return new ResponseItem(null, 'Kích hoạt tài khoản thành công');
+    } catch (error) {
+      throw new BadRequestException('Mã kích hoạt không hợp lệ hoặc đã hết hạn');
+    }
   }
 }
