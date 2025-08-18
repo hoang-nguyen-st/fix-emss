@@ -15,7 +15,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Get all workspaces' })
   @ApiResponse({ status: 200, description: 'Return all workspaces', type: [WorkspaceEntity] })
   async findAll(@Query() params: GetWorkspacesDto): Promise<ResponsePaginate<WorkspaceDto>> {
-    return this.workspacesService.findAll(params);
+    return await this.workspacesService.findAll(params);
   }
 
   @Get(':id')
