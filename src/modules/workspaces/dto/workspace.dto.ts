@@ -6,4 +6,7 @@ export class WorkspaceDto {
 
   @Expose()
   name: string;
+
+  @Expose()
+  createdAt: Date;
 }
