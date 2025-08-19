@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     ports:
-      - 6001:6001
+      - 6002:6002
     command: sh -c "npm run start:dev"
     volumes:
       - ./:/app
