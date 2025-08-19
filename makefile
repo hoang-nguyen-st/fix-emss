@@ -19,13 +19,13 @@ exec:
 	docker compose exec backend sh
 
 seed:
-	docker compose exec backend npm run seed
+	docker compose exec backend yarn run seed
 
 build-dist:
-	docker compose exec backend npm run build exit
+	docker compose exec backend yarn run build exit
 
 format:
-	docker compose exec backend npm run format
+	docker compose exec backend yarn run format
 
 nest-resource:
 	nest g resource /modules/$(name)
