@@ -68,9 +68,12 @@ export class UsersController {
     return await this.usersService.changePassword(req.user.userId, changePasswordDto);
   }
 
-  @Get()
-  async getUsers(@Query() getUsersDto: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
-    return await this.usersService.getUsers(getUsersDto);
+  @Get(':id/all')
+  async getUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() getUsersDto: GetUsersDto
+  ): Promise<ResponsePaginate<UserUnAssignedDto>> {
+    return await this.usersService.getUsers(id, getUsersDto);
   }
 
   @Get('summarize')

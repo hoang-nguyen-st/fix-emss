@@ -19,6 +19,7 @@ import { EmailService } from '../email/email.service';
 import { TokenService } from '../auth/services/token.service';
 import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
+import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
 import { UserUnAssignedDto } from './dto/user-unassigned.dto';
 import { UserStatisticsDataDto, UserStatusStatisticsDto } from './dto/user-statistics.dto';
 
@@ -100,10 +101,15 @@ export class UsersService {
     return new ResponseItem(user, 'Thay đổi mật khẩu thành công');
   }
 
-  async getUsers(params: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
-    const query = this.userRepository.createQueryBuilder('users');
+  async getUsers(id: string, params: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
+    const query = this.userRepository
+      .createQueryBuilder('users')
+      .innerJoin('users.workspaceUsers', 'workspaceUser')
+      .where('workspaceUser.workspaceId = :id', { id })
+      .andWhere('users.deletedAt IS NULL');
+
     if (params.status) {
-      query.where('users.status = ANY(:status)', {
+      query.andWhere('users.status = ANY(:status)', {
         status: [params.status],
       });
     }
