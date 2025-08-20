@@ -20,6 +20,17 @@ export class WorkspacesService {
         search: `%${params.search}%`,
       });
     }
+    if (params.fromDate) {
+      query.andWhere('workspaces.createdAt >= :fromDate', {
+        fromDate: new Date(params.fromDate),
+      });
+    }
+
+    if (params.toDate) {
+      query.andWhere('workspaces.createdAt <= :toDate', {
+        toDate: new Date(params.toDate),
+      });
+    }
     query.orderBy(`workspaces.${params.orderBy}`, params.order);
     query.skip(params.skip);
     query.take(params.take);
