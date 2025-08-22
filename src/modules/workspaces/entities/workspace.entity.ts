@@ -10,6 +10,14 @@ export class WorkspaceEntity extends AbstractEntity {
   name: string;
 
   @Expose()
+  @Column({ type: 'varchar', name: 'description', nullable: true })
+  description: string;
+
+  @Expose()
+  @Column({ type: 'varchar', name: 'image', nullable: true })
+  image: string;
+
+  @Expose()
   @OneToMany(() => WorkspaceUserEntity, (workspaceUser) => workspaceUser.workspace)
   workspaceUsers: WorkspaceUserEntity[];
 }
