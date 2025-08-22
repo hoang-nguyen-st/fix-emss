@@ -39,6 +39,7 @@ import { LocationDeviceModule } from './modules/location-devices/location-device
         JWT_ACCESS_EXPIRES: Joi.string().required(),
         JWT_REFRESH_SECRETKEY: Joi.string().required(),
         JWT_REFRESH_EXPIRES: Joi.string().required(),
+        JWT_ACTIVATE_EXPIRES: Joi.string().required(),
         DATA_CRAWLER_API_ENDPOINT: Joi.string().required(),
         JWT_ACCESS_TOKEN_AMIGO: Joi.string().required(),
         PROJECT_CRON_TIME: Joi.string().required(),
