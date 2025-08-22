@@ -23,7 +23,6 @@ import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/worksp
 import { UserUnAssignedDto } from './dto/user-unassigned.dto';
 import { UserStatisticsDataDto, UserStatusStatisticsDto } from './dto/user-statistics.dto';
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
-import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
 
 @Injectable()
 export class UsersService {
