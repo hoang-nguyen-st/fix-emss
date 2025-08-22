@@ -22,6 +22,8 @@ import { LocationEntity } from '@app/modules/locations/entities/location.entity'
 import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
 import { UserUnAssignedDto } from './dto/user-unassigned.dto';
 import { UserStatisticsDataDto, UserStatusStatisticsDto } from './dto/user-statistics.dto';
+import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
+import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
 
 @Injectable()
 export class UsersService {
@@ -32,10 +34,17 @@ export class UsersService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(LocationEntity)
-    private readonly locationRepository: Repository<LocationEntity>
+    private readonly locationRepository: Repository<LocationEntity>,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepository: Repository<WorkspaceEntity>,
+    @InjectRepository(WorkspaceUserEntity)
+    private readonly workspaceUserRepository: Repository<WorkspaceUserEntity>
   ) {}
 
-  async create(params: CreateUserByAdminDto): Promise<ResponseItem<UserDto>> {
+  async create(workspaceId: string, params: CreateUserByAdminDto): Promise<ResponseItem<UserDto>> {
+    const workspace = await this.workspaceRepository.findOneBy({ id: workspaceId, deletedAt: null });
+    if (!workspace) throw new BadRequestException('Workspace không tồn tại');
+
     const emailExisted = await this.userRepository.findOneBy({
       email: params.email,
       deletedAt: null,
@@ -53,6 +62,11 @@ export class UsersService {
     const userDto = { ...params, password, status: UserStatusEnum.INACTIVE, role: UserRoleEnum.USER };
     const userParams = this.userRepository.create(userDto);
     const user = await this.userRepository.save(userParams);
+
+    await this.workspaceUserRepository.save({
+      workspaceId,
+      userId: user.id,
+    });
 
     const activationToken = this.tokenService.generateActivationToken(user.id);
 

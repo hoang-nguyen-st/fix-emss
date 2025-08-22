@@ -9,16 +9,20 @@ import { UsersController } from '@UsersModule/users.controller';
 import { EmailService } from '../email/email.service';
 import { TokenService } from '../auth/services/token.service';
 import { JwtModule } from '@nestjs/jwt';
+import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
+import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, LocationEntity]),
+    TypeOrmModule.forFeature([UserEntity, LocationEntity, WorkspaceEntity, WorkspaceUserEntity]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_SECRETKEY'),
-        signOptions: { expiresIn: `${configService.get<number>('JWT_ACCESS_EXPIRES')}` },
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES'),
+        },
       }),
     }),
   ],
