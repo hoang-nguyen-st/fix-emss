@@ -306,7 +306,7 @@ export class DataCrawlerService {
     return syncedCount;
   }
 
-  private mapDeviceType(dataType: string): DeviceTypeEnum {
+  private mapDeviceType(dataType: string): DeviceTypeEnum | null {
     switch (dataType.toLowerCase()) {
       case 'iot':
         return DeviceTypeEnum.ELECTRIC;
@@ -317,7 +317,7 @@ export class DataCrawlerService {
       case 'gas':
         return DeviceTypeEnum.GAS;
       default:
-        return DeviceTypeEnum.ELECTRIC;
+        return null;
     }
   }
 
