@@ -1,19 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
-import { GetDeviceDto } from '@app/modules/devices/dto/get-device';
+import { GetDeviceDto, GetTelemetryDto } from '@app/modules/devices/dto/get-device';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { DeviceEntity } from './entities/device.entity';
 import { DeviceTotalType } from '@app/modules/devices/interface/total-device.interface';
 import { SettingDeviceDto } from '@app/modules/devices/dto/setting-device.dto';
+import { DataCrawlerService } from '../data-crawler/data-crawler.service';
+import { firstValueFrom } from 'rxjs';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class DeviceService {
+  private readonly logger = new Logger(DataCrawlerService.name);
   constructor(
     @InjectRepository(DeviceEntity)
-    private deviceRepository: Repository<DeviceEntity>
+    private deviceRepository: Repository<DeviceEntity>,
+    private readonly dataCrawlerService: DataCrawlerService,
+    private readonly httpService: HttpService
   ) {}
 
   async create(deviceDto: CreateDeviceDto) {
@@ -132,8 +138,40 @@ export class DeviceService {
     device.voltageUnit = settingDeviceDto.voltageUnit;
     device.voltageValue = settingDeviceDto.voltageValue;
     device.fieldCalculate = settingDeviceDto.fieldCalculate;
+    device.deviceType = settingDeviceDto.deviceType;
 
     const updatedDevice = await this.deviceRepository.save(device);
     return new ResponseItem(updatedDevice, 'Cập nhật thiết bị thành công!');
+  }
+
+  async getTelemetryOfDevice(telemetryDto: GetTelemetryDto): Promise<ResponseItem<string[]>> {
+    const { projectId, sensorId, systemType } = telemetryDto;
+
+    try {
+      const url = `https://amigo.veep.vn/gateway/iot/api/IoTSensor/PageSensorDataByProject`;
+      const { data } = await firstValueFrom(
+        this.httpService.get(url, {
+          params: {
+            projectId,
+            sensorid: sensorId,
+            systemType: systemType ?? 1,
+          },
+          headers: {
+            Authorization: `Bearer ${this.dataCrawlerService.getAccessTokenForAnotherService()}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const fieldValueList = data?.data?.data?.[0]?.FieldList ?? [];
+
+      return {
+        message: 'Telemetry fetched successfully',
+        data: fieldValueList,
+      };
+    } catch (error) {
+      this.logger.log(error);
+      throw new BadRequestException('Failed to fetch telemetry data from external API');
+    }
   }
 }
