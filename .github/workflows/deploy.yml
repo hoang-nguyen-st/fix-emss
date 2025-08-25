@@ -10,7 +10,7 @@ on:
 
 jobs:
   ci:
-    name: Build & Lint React
+    name: Build & Lint NestJS
     runs-on: ubuntu-latest
 
     steps:
