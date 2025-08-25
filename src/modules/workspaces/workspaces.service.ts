@@ -20,6 +20,17 @@ export class WorkspacesService {
         search: `%${params.search}%`,
       });
     }
+    if (params.fromDate) {
+      const startDate = new Date(params.fromDate.length <= 10 ? params.fromDate : params.fromDate);
+      query.andWhere('workspaces.createdAt >= :startDate', { startDate });
+    }
+
+    if (params.toDate) {
+      const endDate = new Date(params.toDate.length <= 10 ? params.toDate : params.toDate);
+      endDate.setDate(endDate.getDate() + 1);
+      query.andWhere('workspaces.createdAt < :endDate', { endDate });
+    }
+
     query.orderBy(`workspaces.${params.orderBy}`, params.order);
     query.skip(params.skip);
     query.take(params.take);

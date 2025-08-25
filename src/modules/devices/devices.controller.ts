@@ -22,9 +22,9 @@ export class DeviceController {
     return this.deviceService.create(createDeviceDto);
   }
 
-  @Get()
-  findAll(@Query() params: GetDeviceDto) {
-    return this.deviceService.findAll(params);
+  @Get(':id/all')
+  findAll(@Param('id') id: string, @Query() params: GetDeviceDto) {
+    return this.deviceService.findAll(id, params);
   }
 
   @Get('summarize')

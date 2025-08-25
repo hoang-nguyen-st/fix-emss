@@ -21,13 +21,14 @@ export class DeviceService {
     return this.deviceRepository.save(device);
   }
 
-  async findAll(params: GetDeviceDto) {
+  async findAll(id: string, params: GetDeviceDto) {
     const queryBuilder = this.deviceRepository
       .createQueryBuilder('device')
-      .leftJoinAndSelect('device.location', 'location');
+      .leftJoinAndSelect('device.location', 'location')
+      .where('device.workspace_id = :workspaceId', { workspaceId: id });
 
     if (params.search !== undefined) {
-      queryBuilder.where('unaccent(LOWER(device.name)) LIKE unaccent(LOWER(:name))', { name: `%${params.search}%` });
+      queryBuilder.andWhere('unaccent(LOWER(device.name)) LIKE unaccent(LOWER(:name))', { name: `%${params.search}%` });
     }
 
     if (params.status !== undefined) {
@@ -39,7 +40,7 @@ export class DeviceService {
     }
 
     if (params.location !== undefined) {
-      queryBuilder.andWhere('location.id = :id', { id: params.location });
+      queryBuilder.andWhere('location.id = :locationId', { locationId: params.location });
     }
 
     const [result, total] = await queryBuilder
