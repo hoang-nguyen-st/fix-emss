@@ -107,12 +107,19 @@ export class UsersController {
     return await this.usersService.getUser(id);
   }
 
-  @Patch(':id')
+  @Post(':workspaceId/:id')
+  @ApiOperation({ summary: 'Update a user' })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    type: ResponseItem<UserDto>,
+  })
   async update(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto
   ): Promise<ResponseItem<UserDto>> {
-    return await this.usersService.update(id, updateUserDto);
+    return await this.usersService.update(workspaceId, id, updateUserDto);
   }
 
   @Post('avatar/:identityId')
