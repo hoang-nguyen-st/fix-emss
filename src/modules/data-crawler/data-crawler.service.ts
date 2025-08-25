@@ -444,4 +444,8 @@ export class DataCrawlerService {
       throw error;
     }
   }
+
+  public getAccessTokenForAnotherService(): string {
+    return this.accessToken;
+  }
 }
