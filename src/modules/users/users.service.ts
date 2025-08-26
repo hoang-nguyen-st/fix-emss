@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { plainToClass } from 'class-transformer';
 import * as fs from 'fs';
-import { Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { convertPath, generateRandomPassword, getRandomNumber } from '@app/common/utils';
 import { UserRoleEnum, UserStatusEnum } from '@Constant/enums';
