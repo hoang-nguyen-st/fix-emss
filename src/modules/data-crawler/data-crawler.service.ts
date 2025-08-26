@@ -380,6 +380,8 @@ export class DataCrawlerService {
             name: project.name,
             createdBy: 'amigo',
             updatedBy: 'amigo',
+            createdAt: project.creationTime,
+            updatedAt: project.creationTime,
           } as WorkspaceEntity);
 
           await this.workspaceRepository.save(newWorkspace);
