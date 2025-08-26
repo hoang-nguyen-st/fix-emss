@@ -165,10 +165,7 @@ export class DeviceService {
 
       const fieldValueList = data?.data?.data?.[0]?.FieldList ?? [];
 
-      return {
-        message: 'Telemetry fetched successfully',
-        data: fieldValueList,
-      };
+      return new ResponseItem(fieldValueList, 'Telemetry fetched successfully');
     } catch (error) {
       this.logger.log(error);
       throw new BadRequestException('Failed to fetch telemetry data from external API');
