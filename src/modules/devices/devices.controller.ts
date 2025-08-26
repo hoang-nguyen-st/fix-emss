@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { DeviceService } from '@app/modules/devices/devices.service';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
-import { GetDeviceDto } from '@app/modules/devices/dto/get-device';
+import { GetDeviceDto, GetTelemetryDto } from '@app/modules/devices/dto/get-device';
 import { ResponseItem } from '@app/common/dtos';
 import { DeviceTotalType } from '@app/modules/devices/interface/total-device.interface';
 import { SettingDeviceDto } from '@app/modules/devices/dto/setting-device.dto';
@@ -30,6 +30,11 @@ export class DeviceController {
   @Get('summarize')
   getDeviceTypeStats(): Promise<ResponseItem<DeviceTotalType[]>> {
     return this.deviceService.getDeviceByType();
+  }
+
+  @Get('telemetry-keys')
+  getTelemetryKeys(@Query() params: GetTelemetryDto): Promise<ResponseItem<string[]>> {
+    return this.deviceService.getTelemetryOfDevice(params);
   }
 
   @Get(':id')
