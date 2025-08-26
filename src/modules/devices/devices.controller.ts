@@ -33,7 +33,7 @@ export class DeviceController {
   }
 
   @Get('telemetry-keys')
-  getTelemetryKeys(@Query() params: GetTelemetryDto) {
+  getTelemetryKeys(@Query() params: GetTelemetryDto): Promise<ResponseItem<string[]>> {
     return this.deviceService.getTelemetryOfDevice(params);
   }
 
