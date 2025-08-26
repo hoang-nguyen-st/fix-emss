@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { plainToClass } from 'class-transformer';
 import * as fs from 'fs';
-import { Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { convertPath, generateRandomPassword, getRandomNumber } from '@app/common/utils';
 import { UserRoleEnum, UserStatusEnum } from '@Constant/enums';
@@ -248,18 +248,12 @@ export class UsersService {
       throw new BadRequestException('Thông tin cá nhân không tồn tại');
     }
 
-    const phoneExisted = await this.userRepository.findOneBy({
-      phone: updateUserDto.phone,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (phoneExisted) {
-      throw new BadRequestException('Số điện thoại đã tồn tại');
-    }
-
+    const allowed = plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true });
     await this.userRepository.update(id, {
       ...user,
-      ...plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true }),
+      name: allowed.name ?? user.name,
+      address: allowed.address ?? user.address,
+      dateOfBirth: allowed.dateOfBirth ?? user.dateOfBirth,
     });
 
     const result = await this.userRepository.findOneBy({ id, deletedAt: null });
@@ -267,15 +261,23 @@ export class UsersService {
     return new ResponseItem(result, 'Cập nhật dữ liệu thành công');
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+  async update(workspaceId: string, id: string, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+    const workspace = await this.workspaceRepository.findOneBy({ id: workspaceId, deletedAt: null });
+    if (!workspace) throw new BadRequestException('Workspace không tồn tại');
+
+    const belongsToWorkspace = await this.workspaceUserRepository.findOneBy({ workspaceId, userId: id });
+    if (!belongsToWorkspace) throw new BadRequestException('Người dùng không thuộc workspace này');
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) {
-      throw new BadRequestException('Nhân viên không tồn tại');
+      throw new BadRequestException('Người dùng không tồn tại');
     }
 
+    const allowed = plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true });
     await this.userRepository.update(id, {
       ...user,
-      ...plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true }),
+      name: allowed.name ?? user.name,
+      address: allowed.address ?? user.address,
+      dateOfBirth: allowed.dateOfBirth ?? user.dateOfBirth,
     });
 
     const result = await this.userRepository.findOneBy({ id, deletedAt: null });
