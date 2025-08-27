@@ -40,7 +40,7 @@ import { UserStatisticsDataDto } from './dto/user-statistics.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
+  @Post(':workspaceId')
   @HttpCode(201)
   @ApiCreatedResponse({ type: UserDto })
   @ApiOperation({ summary: 'Create a new user' })
@@ -51,8 +51,11 @@ export class UsersController {
     type: ResponseItem<UserDto>,
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async create(@Body() createUserDto: CreateUserByAdminDto): Promise<ResponseItem<UserDto>> {
-    return await this.usersService.create(createUserDto);
+  async create(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() createUserDto: CreateUserByAdminDto
+  ): Promise<ResponseItem<UserDto>> {
+    return await this.usersService.create(workspaceId, createUserDto);
   }
 
   @Patch('reset-password/:id')

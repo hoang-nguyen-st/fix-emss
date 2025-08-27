@@ -116,7 +116,7 @@ export class AmigoProjectDto {
 
   @Expose()
   @IsString()
-  creationTime: string;
+  creationTime: Date;
 
   @Expose()
   @IsOptional()
