@@ -109,11 +109,12 @@ export class DeviceService {
     return this.deviceRepository.remove(device);
   }
 
-  async getDeviceByType(): Promise<ResponseItem<DeviceTotalType[]>> {
+  async getDeviceByType(id: string): Promise<ResponseItem<DeviceTotalType[]>> {
     const stats = await this.deviceRepository
       .createQueryBuilder('device')
       .select('device.deviceType', 'deviceType')
       .addSelect('COUNT(device.id)', 'count')
+      .where('device.workspace_id = :workspaceId', { workspaceId: id })
       .groupBy('device.deviceType')
       .getRawMany();
 
