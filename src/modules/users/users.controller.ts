@@ -79,15 +79,15 @@ export class UsersController {
     return await this.usersService.getUsers(id, getUsersDto);
   }
 
-  @Get('summarize')
+  @Get(':id/summarize')
   @ApiOperation({ summary: 'Get user statistics by status' })
   @ApiResponse({
     status: 200,
     description: 'User statistics retrieved successfully',
     type: UserStatisticsDataDto,
   })
-  async getUserTypeStats(): Promise<ResponseItem<UserStatisticsDataDto>> {
-    return await this.usersService.getUserByType();
+  async getUserTypeStats(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<UserStatisticsDataDto>> {
+    return await this.usersService.getUserByType(id);
   }
 
   @Get('me')

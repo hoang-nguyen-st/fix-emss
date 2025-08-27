@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { GetUsersDto } from '@UsersModule/dto/get-users.dto';
 import { UpdateUserDto } from '@UsersModule/dto/update-user.dto';
 import { UserEntity } from '@UsersModule/entities/user.entity';
+import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
@@ -18,12 +19,10 @@ import { avtPathName, baseImageUrl } from '@Constant/url';
 import { EmailService } from '../email/email.service';
 import { TokenService } from '../auth/services/token.service';
 import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
-import { LocationEntity } from '@app/modules/locations/entities/location.entity';
-import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
 import { UserUnAssignedDto } from './dto/user-unassigned.dto';
 import { UserStatisticsDataDto, UserStatusStatisticsDto } from './dto/user-statistics.dto';
-import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
+import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 
 @Injectable()
 export class UsersService {
@@ -161,36 +160,40 @@ export class UsersService {
     return new ResponsePaginate(usersWithUnsignedStatus, pageMetaDto, 'Thành công', UserUnAssignedDto);
   }
 
-  async getUserByType(): Promise<ResponseItem<UserStatisticsDataDto>> {
-    const totalUsers = await this.getTotalUsersCount();
-    const userStatsByStatus = await this.getUserStatsByStatus();
-    const unassignedUsersCount = await this.getUnassignedUsersCount();
+  async getUserByType(id: string): Promise<ResponseItem<UserStatisticsDataDto>> {
+    const totalUsers = await this.getTotalUsersCount(id);
+    const userStatsByStatus = await this.getUserStatsByStatus(id);
+    const unassignedUsersCount = await this.getUnassignedUsersCount(id);
 
     const data = this.buildUserStatisticsData(userStatsByStatus, unassignedUsersCount);
 
     return new ResponseItem({ data, total: totalUsers }, 'Thành công', UserStatisticsDataDto);
   }
 
-  private async getTotalUsersCount(): Promise<number> {
+  private async getTotalUsersCount(id: string): Promise<number> {
     return await this.userRepository.count({
-      where: { deletedAt: null },
+      where: { deletedAt: null, workspaceUsers: { workspaceId: id } },
     });
   }
 
-  private async getUserStatsByStatus(): Promise<UserStatusStatisticsDto[]> {
+  private async getUserStatsByStatus(id: string): Promise<UserStatusStatisticsDto[]> {
     return await this.userRepository
       .createQueryBuilder('user')
+      .innerJoin('user.workspaceUsers', 'workspaceUser')
       .select('user.status', 'status')
       .addSelect('COUNT(user.id)', 'count')
       .where('user.deletedAt IS NULL')
+      .andWhere('workspaceUser.workspaceId = :id', { id })
       .groupBy('user.status')
       .getRawMany();
   }
 
-  private async getUnassignedUsersCount(): Promise<number> {
+  private async getUnassignedUsersCount(id: string): Promise<number> {
     return await this.userRepository
       .createQueryBuilder('user')
+      .innerJoin('user.workspaceUsers', 'workspaceUser')
       .where('user.deletedAt IS NULL')
+      .andWhere('workspaceUser.workspaceId = :id', { id })
       .andWhere((qb) => {
         const subQuery = qb
           .subQuery()
