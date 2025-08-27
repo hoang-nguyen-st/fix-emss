@@ -12,7 +12,6 @@ import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { AmigoApiResponseDto, AmigoSensorDto, AmigoProjectApiResponseDto, AmigoProjectDto } from './dto';
 import { plainToInstance } from 'class-transformer';
-import { DeviceTypeEnum } from '@app/common/constants/enums';
 
 @Injectable()
 export class DataCrawlerService {
