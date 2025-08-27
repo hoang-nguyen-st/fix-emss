@@ -28,28 +28,28 @@ export class DeviceController {
   }
 
   @Get(':id/summarize')
-  getDeviceTypeStats(@Param('id') id: string): Promise<ResponseItem<DeviceTotalType[]>> {
+  getDeviceTypeStats(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<DeviceTotalType[]>> {
     return this.deviceService.getDeviceByType(id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<ResponseItem<DeviceEntity>> {
+  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<DeviceEntity>> {
     return this.deviceService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDeviceDto: UpdateDeviceDto) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateDeviceDto: UpdateDeviceDto) {
     return this.deviceService.update(id, updateDeviceDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.deviceService.remove(id);
   }
 
   @Post(':id/setting-device')
   settingDevice(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() settingDeviceDto: SettingDeviceDto
   ): Promise<ResponseItem<DeviceEntity>> {
     return this.deviceService.settingDevice(id, settingDeviceDto);
