@@ -271,7 +271,7 @@ export class DataCrawlerService {
         if (existingDevice) {
           existingDevice.name = sensor.name;
           existingDevice.description = sensor.description;
-          existingDevice.deviceType = this.mapDeviceType(sensor.dataType);
+          existingDevice.deviceType = null;
           existingDevice.status = true;
           existingDevice.initialIndex = 0;
           existingDevice.currentIndex = 0;
@@ -284,7 +284,7 @@ export class DataCrawlerService {
             devEUI: sensor.devEUI,
             name: sensor.name,
             description: sensor.description,
-            deviceType: this.mapDeviceType(sensor.dataType),
+            deviceType: null,
             status: true,
             initialIndex: 0,
             currentIndex: 0,
@@ -304,21 +304,6 @@ export class DataCrawlerService {
     }
 
     return syncedCount;
-  }
-
-  private mapDeviceType(dataType: string): DeviceTypeEnum | null {
-    switch (dataType.toLowerCase()) {
-      case 'iot':
-        return DeviceTypeEnum.ELECTRIC;
-      case 'electric':
-        return DeviceTypeEnum.ELECTRIC;
-      case 'water':
-        return DeviceTypeEnum.WATER;
-      case 'gas':
-        return DeviceTypeEnum.GAS;
-      default:
-        return null;
-    }
   }
 
   public async syncAllProjects(): Promise<{ success: boolean; message: string; syncedCount: number }> {
