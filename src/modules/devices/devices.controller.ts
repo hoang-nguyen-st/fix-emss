@@ -27,9 +27,9 @@ export class DeviceController {
     return this.deviceService.findAll(id, params);
   }
 
-  @Get('summarize')
-  getDeviceTypeStats(): Promise<ResponseItem<DeviceTotalType[]>> {
-    return this.deviceService.getDeviceByType();
+  @Get(':id/summarize')
+  getDeviceTypeStats(@Param('id') id: string): Promise<ResponseItem<DeviceTotalType[]>> {
+    return this.deviceService.getDeviceByType(id);
   }
 
   @Get(':id')
