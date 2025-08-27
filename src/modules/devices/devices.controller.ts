@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { DeviceService } from '@app/modules/devices/devices.service';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
@@ -23,7 +23,7 @@ export class DeviceController {
   }
 
   @Get(':id/all')
-  findAll(@Param('id') id: string, @Query() params: GetDeviceDto) {
+  findAll(@Param('id', ParseUUIDPipe) id: string, @Query() params: GetDeviceDto) {
     return this.deviceService.findAll(id, params);
   }
 
