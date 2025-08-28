@@ -12,7 +12,6 @@ import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { AmigoApiResponseDto, AmigoSensorDto, AmigoProjectApiResponseDto, AmigoProjectDto } from './dto';
 import { plainToInstance } from 'class-transformer';
-import { DeviceTypeEnum } from '@app/common/constants/enums';
 
 @Injectable()
 export class DataCrawlerService {
@@ -271,7 +270,6 @@ export class DataCrawlerService {
         if (existingDevice) {
           existingDevice.name = sensor.name;
           existingDevice.description = sensor.description;
-          existingDevice.deviceType = null;
           existingDevice.status = true;
           existingDevice.initialIndex = 0;
           existingDevice.currentIndex = 0;
@@ -284,7 +282,6 @@ export class DataCrawlerService {
             devEUI: sensor.devEUI,
             name: sensor.name,
             description: sensor.description,
-            deviceType: null,
             status: true,
             initialIndex: 0,
             currentIndex: 0,
