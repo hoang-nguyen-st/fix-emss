@@ -270,7 +270,6 @@ export class DataCrawlerService {
         if (existingDevice) {
           existingDevice.name = sensor.name;
           existingDevice.description = sensor.description;
-          existingDevice.deviceType = null;
           existingDevice.status = true;
           existingDevice.initialIndex = 0;
           existingDevice.currentIndex = 0;
@@ -283,7 +282,6 @@ export class DataCrawlerService {
             devEUI: sensor.devEUI,
             name: sensor.name,
             description: sensor.description,
-            deviceType: null,
             status: true,
             initialIndex: 0,
             currentIndex: 0,
