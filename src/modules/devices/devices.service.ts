@@ -134,10 +134,15 @@ export class DeviceService {
     const device = await this.deviceRepository.findOne({ where: { id } });
     if (!device) throw new NotFoundException(`Thiết bị với id là ${id} không tìm thấy`);
 
-    device.voltageUnit = settingDeviceDto.voltageUnit;
-    device.voltageValue = settingDeviceDto.voltageValue;
     device.fieldCalculate = settingDeviceDto.fieldCalculate;
     device.deviceType = settingDeviceDto.deviceType;
+    if (settingDeviceDto.voltageUnit !== undefined) {
+      device.voltageUnit = settingDeviceDto.voltageUnit;
+    }
+
+    if (settingDeviceDto.voltageValue !== undefined) {
+      device.voltageValue = settingDeviceDto.voltageValue;
+    }
 
     const updatedDevice = await this.deviceRepository.save(device);
     return new ResponseItem(updatedDevice, 'Cập nhật thiết bị thành công!');
