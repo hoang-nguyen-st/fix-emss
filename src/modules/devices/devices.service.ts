@@ -11,6 +11,7 @@ import { SettingDeviceDto } from '@app/modules/devices/dto/setting-device.dto';
 import { DataCrawlerService } from '../data-crawler/data-crawler.service';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
+import { VoltageUnitEnum } from '@Constant/enums';
 
 @Injectable()
 export class DeviceService {
@@ -141,6 +142,13 @@ export class DeviceService {
     }
 
     if (settingDeviceDto.voltageValue !== undefined) {
+      if (
+        (device.voltageUnit === VoltageUnitEnum.VOLT && settingDeviceDto.voltageValue > 500000) ||
+        (device.voltageUnit === VoltageUnitEnum.KILOVOLT && settingDeviceDto.voltageValue > 500)
+      ) {
+        throw new BadRequestException(`Giá trị voltageValue vượt quá giới hạn cho đơn vị ${device.voltageUnit}`);
+      }
+
       device.voltageValue = settingDeviceDto.voltageValue;
     }
 

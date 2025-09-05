@@ -1,6 +1,6 @@
 import { DeviceTypeEnum, VoltageUnitEnum } from '@Constant/enums';
 import { Transform } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class SettingDeviceDto {
   @IsString()
@@ -15,6 +15,7 @@ export class SettingDeviceDto {
   @IsEnum(VoltageUnitEnum)
   voltageUnit?: VoltageUnitEnum;
 
+  @Min(0)
   @IsNumber()
   @IsOptional()
   @Transform(({ value }) => Number(value))
