@@ -78,7 +78,7 @@ export class LocationsService {
         },
       },
       order: {
-        createdAt: 'DESC' as const,
+        createdAt: 'DESC',
       },
       select: {
         id: true,
@@ -103,7 +103,7 @@ export class LocationsService {
       },
       skip,
       take,
-    } as const;
+    };
 
     const [locations, total] = await this.locationsRepository.findAndCount(queryOptions);
 
