@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, FindManyOptions } from 'typeorm';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
@@ -11,7 +11,6 @@ import { PriceTypesService } from '../price-types/price-types.service';
 import { UsersService } from '@UsersModule/users.service';
 import { LocationTypeEnum } from '@Constant/enums';
 import { LocationByWorkspaceDto } from './dto/get-location-by-workspace';
-import { plainToClass } from 'class-transformer';
 
 @Injectable()
 export class LocationsService {
@@ -57,7 +56,7 @@ export class LocationsService {
   ): Promise<ResponsePaginate<LocationByWorkspaceDto[]>> {
     const { skip, take, search, locationTypeId } = params;
 
-    const whereConditions: any = {
+    const whereConditions: FindManyOptions<LocationEntity>['where'] = {
       workspace: { id: workspaceId },
     };
 
@@ -69,7 +68,7 @@ export class LocationsService {
       whereConditions.name = Like(`%${search}%`);
     }
 
-    const queryOptions = {
+    const queryOptions: FindManyOptions<LocationEntity> = {
       where: whereConditions,
       relations: {
         locationType: true,
