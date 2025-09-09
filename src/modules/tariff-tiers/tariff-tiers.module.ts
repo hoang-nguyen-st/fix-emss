@@ -3,9 +3,10 @@ import { Module } from '@nestjs/common';
 import { TariffTierEntity } from './entities/tariff-tier.entity';
 import { TariffTiersController } from './tariff-tiers.controller';
 import { TariffTiersService } from './tariff-tiers.service';
+import { LocationTypeEntity, WorkspaceEntity } from '@Entity/index';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TariffTierEntity])],
+  imports: [TypeOrmModule.forFeature([TariffTierEntity, WorkspaceEntity, LocationTypeEntity])],
   exports: [TypeOrmModule],
   controllers: [TariffTiersController],
   providers: [TariffTiersService],

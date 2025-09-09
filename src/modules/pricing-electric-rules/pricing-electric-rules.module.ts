@@ -6,6 +6,7 @@ import { PricingElectricRulesController } from './pricing-electric-rules.control
 import { PricingElectricRulesService } from './pricing-electric-rules.service';
 import { LocationTypeEntity } from '../location-types/entities';
 import { TariffTierEntity } from '../tariff-tiers/entities';
+import { PriceTypeEntity, PriceTypeLocationTypeEntity, VoltageLevelEntity, WorkspaceEntity } from '@Entity/index';
 
 @Module({
   imports: [
@@ -14,6 +15,10 @@ import { TariffTierEntity } from '../tariff-tiers/entities';
       LocationTypeVoltageLevelEntity,
       LocationTypeEntity,
       TariffTierEntity,
+      WorkspaceEntity,
+      VoltageLevelEntity,
+      PriceTypeEntity,
+      PriceTypeLocationTypeEntity,
     ]),
   ],
   exports: [TypeOrmModule, PricingElectricRulesService],
