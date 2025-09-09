@@ -22,15 +22,19 @@ export class PriceTypeLocationTypeSeeder implements Seeder {
 
     const priceTypeLocationTypes = [
       {
-        priceType: priceTypes.find((pt) => pt.priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1),
-        locationType: locationTypes.find((lt) => lt.locationTypeEnum === LocationTypeEnum.RESIDENTIAL),
-      },
-      {
         priceType: priceTypes.find((pt) => pt.priceTypeEnum === PriceTypeEnum.PRICE_TYPE_3),
         locationType: locationTypes.find((lt) => lt.locationTypeEnum === LocationTypeEnum.BUSINESS),
       },
       {
         priceType: priceTypes.find((pt) => pt.priceTypeEnum === PriceTypeEnum.PRICE_TYPE_3),
+        locationType: locationTypes.find((lt) => lt.locationTypeEnum === LocationTypeEnum.PRODUCTION),
+      },
+      {
+        priceType: priceTypes.find((pt) => pt.priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1),
+        locationType: locationTypes.find((lt) => lt.locationTypeEnum === LocationTypeEnum.BUSINESS),
+      },
+      {
+        priceType: priceTypes.find((pt) => pt.priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1),
         locationType: locationTypes.find((lt) => lt.locationTypeEnum === LocationTypeEnum.PRODUCTION),
       },
     ];
