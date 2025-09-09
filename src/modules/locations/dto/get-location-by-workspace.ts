@@ -25,6 +25,14 @@ export class DeviceSummaryDto {
   name: string;
 }
 
+export class PriceTypeSummaryDto {
+  @Expose()
+  id: string;
+
+  @Expose()
+  name: string;
+}
+
 export class LocationDeviceSummaryDto {
   @Expose()
   id: string;
@@ -58,4 +66,8 @@ export class LocationByWorkspaceDto {
   @Expose()
   @Type(() => LocationDeviceSummaryDto)
   locationDevices: LocationDeviceSummaryDto[];
+
+  @Expose()
+  @Type(() => PriceTypeSummaryDto)
+  priceType: PriceTypeSummaryDto;
 }
