@@ -76,6 +76,7 @@ export class LocationsService {
         locationDevices: {
           device: true,
         },
+        priceType: true,
       },
       order: {
         createdAt: 'DESC',
@@ -99,6 +100,10 @@ export class LocationsService {
             id: true,
             name: true,
           },
+        },
+        priceType: {
+          id: true,
+          name: true,
         },
       },
       skip,
