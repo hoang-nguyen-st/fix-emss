@@ -125,5 +125,4 @@ export enum TimeUsageTypeEnum {
 export enum VoltageUnitEnum {
   VOLT = 'V',
   KILOVOLT = 'kV',
-  MEGAVOLT = 'MV',
 }
