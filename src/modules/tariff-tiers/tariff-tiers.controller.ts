@@ -20,7 +20,7 @@ export class TariffTiersController {
   }
 
   @Post('bulk')
-  async createMany(@Body() dto: CreateManyTariffTiersDto) {
+  async createMany(@Body() dto: CreateManyTariffTiersDto): Promise<ResponseItem<TariffTierEntity[]>> {
     return this.tariffTiersService.createMany(dto);
   }
 }
