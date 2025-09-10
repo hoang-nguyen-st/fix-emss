@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { plainToClass } from 'class-transformer';
 import * as fs from 'fs';
-import { Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { convertPath, generateRandomPassword, getRandomNumber } from '@app/common/utils';
 import { UserRoleEnum, UserStatusEnum } from '@Constant/enums';
@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { GetUsersDto } from '@UsersModule/dto/get-users.dto';
 import { UpdateUserDto } from '@UsersModule/dto/update-user.dto';
 import { UserEntity } from '@UsersModule/entities/user.entity';
+import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileDto } from './dto/profile.dto';
 import { UserDto } from './dto/user.dto';
@@ -18,11 +19,10 @@ import { avtPathName, baseImageUrl } from '@Constant/url';
 import { EmailService } from '../email/email.service';
 import { TokenService } from '../auth/services/token.service';
 import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
-import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { UserUnAssignedDto } from './dto/user-unassigned.dto';
 import { UserStatisticsDataDto, UserStatusStatisticsDto } from './dto/user-statistics.dto';
-import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { WorkspaceUserEntity } from '@app/modules/workspace-user/entities/workspace-user.entity';
+import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 
 @Injectable()
 export class UsersService {
@@ -114,10 +114,15 @@ export class UsersService {
     return new ResponseItem(user, 'Thay đổi mật khẩu thành công');
   }
 
-  async getUsers(params: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
-    const query = this.userRepository.createQueryBuilder('users');
+  async getUsers(id: string, params: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
+    const query = this.userRepository
+      .createQueryBuilder('users')
+      .innerJoin('users.workspaceUsers', 'workspaceUser')
+      .where('workspaceUser.workspaceId = :id', { id })
+      .andWhere('users.deletedAt IS NULL');
+
     if (params.status) {
-      query.where('users.status = ANY(:status)', {
+      query.andWhere('users.status = ANY(:status)', {
         status: [params.status],
       });
     }
@@ -155,36 +160,40 @@ export class UsersService {
     return new ResponsePaginate(usersWithUnsignedStatus, pageMetaDto, 'Thành công', UserUnAssignedDto);
   }
 
-  async getUserByType(): Promise<ResponseItem<UserStatisticsDataDto>> {
-    const totalUsers = await this.getTotalUsersCount();
-    const userStatsByStatus = await this.getUserStatsByStatus();
-    const unassignedUsersCount = await this.getUnassignedUsersCount();
+  async getUserByType(id: string): Promise<ResponseItem<UserStatisticsDataDto>> {
+    const totalUsers = await this.getTotalUsersCount(id);
+    const userStatsByStatus = await this.getUserStatsByStatus(id);
+    const unassignedUsersCount = await this.getUnassignedUsersCount(id);
 
     const data = this.buildUserStatisticsData(userStatsByStatus, unassignedUsersCount);
 
     return new ResponseItem({ data, total: totalUsers }, 'Thành công', UserStatisticsDataDto);
   }
 
-  private async getTotalUsersCount(): Promise<number> {
+  private async getTotalUsersCount(id: string): Promise<number> {
     return await this.userRepository.count({
-      where: { deletedAt: null },
+      where: { deletedAt: null, workspaceUsers: { workspaceId: id } },
     });
   }
 
-  private async getUserStatsByStatus(): Promise<UserStatusStatisticsDto[]> {
+  private async getUserStatsByStatus(id: string): Promise<UserStatusStatisticsDto[]> {
     return await this.userRepository
       .createQueryBuilder('user')
+      .innerJoin('user.workspaceUsers', 'workspaceUser')
       .select('user.status', 'status')
       .addSelect('COUNT(user.id)', 'count')
       .where('user.deletedAt IS NULL')
+      .andWhere('workspaceUser.workspaceId = :id', { id })
       .groupBy('user.status')
       .getRawMany();
   }
 
-  private async getUnassignedUsersCount(): Promise<number> {
+  private async getUnassignedUsersCount(id: string): Promise<number> {
     return await this.userRepository
       .createQueryBuilder('user')
+      .innerJoin('user.workspaceUsers', 'workspaceUser')
       .where('user.deletedAt IS NULL')
+      .andWhere('workspaceUser.workspaceId = :id', { id })
       .andWhere((qb) => {
         const subQuery = qb
           .subQuery()
@@ -243,18 +252,12 @@ export class UsersService {
       throw new BadRequestException('Thông tin cá nhân không tồn tại');
     }
 
-    const phoneExisted = await this.userRepository.findOneBy({
-      phone: updateUserDto.phone,
-      id: Not(id),
-      deletedAt: null,
-    });
-    if (phoneExisted) {
-      throw new BadRequestException('Số điện thoại đã tồn tại');
-    }
-
+    const allowed = plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true });
     await this.userRepository.update(id, {
       ...user,
-      ...plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true }),
+      name: allowed.name ?? user.name,
+      address: allowed.address ?? user.address,
+      dateOfBirth: allowed.dateOfBirth ?? user.dateOfBirth,
     });
 
     const result = await this.userRepository.findOneBy({ id, deletedAt: null });
@@ -262,15 +265,23 @@ export class UsersService {
     return new ResponseItem(result, 'Cập nhật dữ liệu thành công');
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+  async update(workspaceId: string, id: string, updateUserDto: UpdateUserDto): Promise<ResponseItem<UserDto>> {
+    const workspace = await this.workspaceRepository.findOneBy({ id: workspaceId, deletedAt: null });
+    if (!workspace) throw new BadRequestException('Workspace không tồn tại');
+
+    const belongsToWorkspace = await this.workspaceUserRepository.findOneBy({ workspaceId, userId: id });
+    if (!belongsToWorkspace) throw new BadRequestException('Người dùng không thuộc workspace này');
     const user = await this.userRepository.findOneBy({ id, deletedAt: null });
     if (!user) {
-      throw new BadRequestException('Nhân viên không tồn tại');
+      throw new BadRequestException('Người dùng không tồn tại');
     }
 
+    const allowed = plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true });
     await this.userRepository.update(id, {
       ...user,
-      ...plainToClass(UpdateUserDto, updateUserDto, { excludeExtraneousValues: true }),
+      name: allowed.name ?? user.name,
+      address: allowed.address ?? user.address,
+      dateOfBirth: allowed.dateOfBirth ?? user.dateOfBirth,
     });
 
     const result = await this.userRepository.findOneBy({ id, deletedAt: null });

@@ -1,19 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
-import { GetDeviceDto } from '@app/modules/devices/dto/get-device';
+import { GetDeviceDto, GetTelemetryDto } from '@app/modules/devices/dto/get-device';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
 import { DeviceEntity } from './entities/device.entity';
 import { DeviceTotalType } from '@app/modules/devices/interface/total-device.interface';
 import { SettingDeviceDto } from '@app/modules/devices/dto/setting-device.dto';
+import { DataCrawlerService } from '../data-crawler/data-crawler.service';
+import { firstValueFrom } from 'rxjs';
+import { HttpService } from '@nestjs/axios';
+import { VoltageUnitEnum } from '@Constant/enums';
 
 @Injectable()
 export class DeviceService {
+  private readonly logger = new Logger(DataCrawlerService.name);
   constructor(
     @InjectRepository(DeviceEntity)
-    private deviceRepository: Repository<DeviceEntity>
+    private deviceRepository: Repository<DeviceEntity>,
+    private readonly dataCrawlerService: DataCrawlerService,
+    private readonly httpService: HttpService
   ) {}
 
   async create(deviceDto: CreateDeviceDto) {
@@ -21,13 +28,14 @@ export class DeviceService {
     return this.deviceRepository.save(device);
   }
 
-  async findAll(params: GetDeviceDto) {
+  async findAll(id: string, params: GetDeviceDto) {
     const queryBuilder = this.deviceRepository
       .createQueryBuilder('device')
-      .leftJoinAndSelect('device.location', 'location');
+      .leftJoinAndSelect('device.location', 'location')
+      .where('device.workspace_id = :workspaceId', { workspaceId: id });
 
     if (params.search !== undefined) {
-      queryBuilder.where('unaccent(LOWER(device.name)) LIKE unaccent(LOWER(:name))', { name: `%${params.search}%` });
+      queryBuilder.andWhere('unaccent(LOWER(device.name)) LIKE unaccent(LOWER(:name))', { name: `%${params.search}%` });
     }
 
     if (params.status !== undefined) {
@@ -39,7 +47,7 @@ export class DeviceService {
     }
 
     if (params.location !== undefined) {
-      queryBuilder.andWhere('location.id = :id', { id: params.location });
+      queryBuilder.andWhere('location.id = :locationId', { locationId: params.location });
     }
 
     const [result, total] = await queryBuilder
@@ -102,11 +110,12 @@ export class DeviceService {
     return this.deviceRepository.remove(device);
   }
 
-  async getDeviceByType(): Promise<ResponseItem<DeviceTotalType[]>> {
+  async getDeviceByType(id: string): Promise<ResponseItem<DeviceTotalType[]>> {
     const stats = await this.deviceRepository
       .createQueryBuilder('device')
       .select('device.deviceType', 'deviceType')
       .addSelect('COUNT(device.id)', 'count')
+      .where('device.workspace_id = :workspaceId', { workspaceId: id })
       .groupBy('device.deviceType')
       .getRawMany();
 
@@ -128,11 +137,52 @@ export class DeviceService {
     const device = await this.deviceRepository.findOne({ where: { id } });
     if (!device) throw new NotFoundException(`Thiết bị với id là ${id} không tìm thấy`);
 
-    device.voltageUnit = settingDeviceDto.voltageUnit;
-    device.voltageValue = settingDeviceDto.voltageValue;
     device.fieldCalculate = settingDeviceDto.fieldCalculate;
+    device.deviceType = settingDeviceDto.deviceType;
+    if (settingDeviceDto.voltageUnit !== undefined) {
+      device.voltageUnit = settingDeviceDto.voltageUnit;
+    }
+
+    if (settingDeviceDto.voltageValue !== undefined) {
+      if (
+        (device.voltageUnit === VoltageUnitEnum.VOLT && settingDeviceDto.voltageValue > 500000) ||
+        (device.voltageUnit === VoltageUnitEnum.KILOVOLT && settingDeviceDto.voltageValue > 500)
+      ) {
+        throw new BadRequestException(`Giá trị voltageValue vượt quá giới hạn cho đơn vị ${device.voltageUnit}`);
+      }
+
+      device.voltageValue = settingDeviceDto.voltageValue;
+    }
 
     const updatedDevice = await this.deviceRepository.save(device);
     return new ResponseItem(updatedDevice, 'Cập nhật thiết bị thành công!');
+  }
+
+  async getTelemetryOfDevice(telemetryDto: GetTelemetryDto): Promise<ResponseItem<string[]>> {
+    const { projectId, sensorId, systemType } = telemetryDto;
+
+    try {
+      const url = `https://amigo.veep.vn/gateway/iot/api/IoTSensor/PageSensorDataByProject`;
+      const { data } = await firstValueFrom(
+        this.httpService.get(url, {
+          params: {
+            projectId,
+            sensorid: sensorId,
+            systemType: systemType ?? 1,
+          },
+          headers: {
+            Authorization: `Bearer ${this.dataCrawlerService.getAccessTokenForAnotherService()}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const fieldValueList = data?.data?.data?.[0]?.FieldList ?? [];
+
+      return new ResponseItem(fieldValueList, 'Telemetry fetched successfully');
+    } catch (error) {
+      this.logger.log(error);
+      throw new BadRequestException('Failed to fetch telemetry data from external API');
+    }
   }
 }

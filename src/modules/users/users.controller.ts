@@ -71,20 +71,23 @@ export class UsersController {
     return await this.usersService.changePassword(req.user.userId, changePasswordDto);
   }
 
-  @Get()
-  async getUsers(@Query() getUsersDto: GetUsersDto): Promise<ResponsePaginate<UserUnAssignedDto>> {
-    return await this.usersService.getUsers(getUsersDto);
+  @Get(':id/all')
+  async getUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() getUsersDto: GetUsersDto
+  ): Promise<ResponsePaginate<UserUnAssignedDto>> {
+    return await this.usersService.getUsers(id, getUsersDto);
   }
 
-  @Get('summarize')
+  @Get(':id/summarize')
   @ApiOperation({ summary: 'Get user statistics by status' })
   @ApiResponse({
     status: 200,
     description: 'User statistics retrieved successfully',
     type: UserStatisticsDataDto,
   })
-  async getUserTypeStats(): Promise<ResponseItem<UserStatisticsDataDto>> {
-    return await this.usersService.getUserByType();
+  async getUserTypeStats(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<UserStatisticsDataDto>> {
+    return await this.usersService.getUserByType(id);
   }
 
   @Get('me')
@@ -107,12 +110,19 @@ export class UsersController {
     return await this.usersService.getUser(id);
   }
 
-  @Patch(':id')
+  @Post(':workspaceId/:id')
+  @ApiOperation({ summary: 'Update a user' })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    type: ResponseItem<UserDto>,
+  })
   async update(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto
   ): Promise<ResponseItem<UserDto>> {
-    return await this.usersService.update(id, updateUserDto);
+    return await this.usersService.update(workspaceId, id, updateUserDto);
   }
 
   @Post('avatar/:identityId')

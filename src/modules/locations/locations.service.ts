@@ -1,16 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like, FindManyOptions } from 'typeorm';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { GetLocationDto } from './dto/get-location.dto';
 import { PageMetaDto, ResponseItem, ResponsePaginate } from '@app/common/dtos';
-import { LocationDto } from './dto/location.dto';
 import { LocationTypesService } from '../location-types/location-types.service';
 import { PriceTypesService } from '../price-types/price-types.service';
 import { UsersService } from '@UsersModule/users.service';
 import { LocationTypeEnum } from '@Constant/enums';
+import { LocationByWorkspaceDto } from './dto/get-location-by-workspace';
 
 @Injectable()
 export class LocationsService {
@@ -50,26 +50,67 @@ export class LocationsService {
     return new ResponseItem(savedLocation, 'Tạo địa điểm thành công!');
   }
 
-  async getAllLocations(params: GetLocationDto): Promise<ResponsePaginate<LocationDto[]>> {
+  async getLocationsByWorkspace(
+    workspaceId: string,
+    params: GetLocationDto
+  ): Promise<ResponsePaginate<LocationByWorkspaceDto[]>> {
     const { skip, take, search, locationTypeId } = params;
-    const query = this.locationsRepository.createQueryBuilder('locations');
+
+    const whereConditions: FindManyOptions<LocationEntity>['where'] = {
+      workspace: { id: workspaceId },
+    };
 
     if (locationTypeId) {
-      query.where('locations.locationType.id = :locationTypeId', { locationTypeId });
+      whereConditions.locationType = { id: locationTypeId };
     }
 
     if (search) {
-      query.andWhere('unaccent(LOWER(locations.name)) ILIKE unaccent(LOWER(:name))', { name: `%${search}%` });
+      whereConditions.name = Like(`%${search}%`);
     }
 
-    query.leftJoinAndSelect('locations.locationType', 'locationType');
-    query.leftJoinAndSelect('locations.workspace', 'workspace');
-    query.leftJoinAndSelect('locations.user', 'user');
-    query.leftJoinAndSelect('locations.priceType', 'priceType');
+    const queryOptions: FindManyOptions<LocationEntity> = {
+      where: whereConditions,
+      relations: {
+        locationType: true,
+        user: true,
+        locationDevices: {
+          device: true,
+        },
+        priceType: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        createdAt: true,
+        locationType: {
+          id: true,
+          name: true,
+        },
+        user: {
+          id: true,
+          name: true,
+        },
+        locationDevices: {
+          id: true,
+          device: {
+            id: true,
+            name: true,
+          },
+        },
+        priceType: {
+          id: true,
+          name: true,
+        },
+      },
+      skip,
+      take,
+    };
 
-    query.orderBy('locations.createdAt', 'ASC');
-
-    const [locations, total] = await query.skip(skip).take(take).getManyAndCount();
+    const [locations, total] = await this.locationsRepository.findAndCount(queryOptions);
 
     const pageMetaDto = new PageMetaDto({ itemCount: total, pageOptionsDto: params });
 

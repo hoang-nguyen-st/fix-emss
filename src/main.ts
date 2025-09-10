@@ -13,7 +13,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // Pipes
-  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: false }));
 
   // Prefix
   app.setGlobalPrefix('api');
@@ -29,7 +29,7 @@ async function bootstrap() {
   SwaggerModule.setup('/docs', app, document);
 
   const port = configService.get<number>('APP_PORT');
-  await app.listen(port || 6001);
+  await app.listen(port || 6002);
 }
 
 bootstrap();
