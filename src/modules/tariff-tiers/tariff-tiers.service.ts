@@ -68,6 +68,8 @@ export class TariffTiersService {
       })
     );
 
-    return await this.tariffTierRepository.save(entities);
+    const results = await this.tariffTierRepository.save(entities);
+
+    return new ResponseItem<TariffTierEntity[]>(results, 'Setting danh sách biểu giá thành công!');
   }
 }
