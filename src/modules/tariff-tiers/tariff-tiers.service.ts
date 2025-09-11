@@ -1,15 +1,22 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { LocationTypeEntity, TariffTierEntity, WorkspaceEntity } from '@Entity/index';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { GetTariffTierDto } from './dto/response/get-tariff-tier.dto';
 import { Repository } from 'typeorm';
-import { TariffTierEntity } from './entities/tariff-tier.entity';
 import { ResponseItem } from '@app/common/dtos';
-import { GetTariffTierDto } from './dto/get-tariff-tier.dto';
-import { CreateManyTariffTiersDto } from './dto/tariff-tier.dto';
 import { levelToEnum, levelToKwh, levelToName } from '@Constant/mapsData';
-import { LocationTypeEntity, WorkspaceEntity } from '@Entity/index';
+import { CreateManyTariffTiersDto } from './dto/request/tariff-tier.dto';
 
 @Injectable()
 export class TariffTiersService {
+  private readonly logger: Logger;
+
   constructor(
     @InjectRepository(TariffTierEntity)
     private readonly tariffTierRepository: Repository<TariffTierEntity>,
@@ -71,5 +78,29 @@ export class TariffTiersService {
     const results = await this.tariffTierRepository.save(entities);
 
     return new ResponseItem<TariffTierEntity[]>(results, 'Setting danh sách biểu giá thành công!');
+  }
+
+  async updateTariffTierPrice(tariffTierId: string, unitPrice: number): Promise<ResponseItem<TariffTierEntity>> {
+    try {
+      const tier = await this.tariffTierRepository.findOne({
+        where: { id: tariffTierId },
+      });
+
+      if (!tier) {
+        throw new NotFoundException('Không tìm thấy mức giá này');
+      }
+
+      Object.assign(tier, { unitPrice });
+
+      const result = await this.tariffTierRepository.save(tier);
+
+      return new ResponseItem(result, 'Cập nhật mức giá thành công');
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(error);
+      throw new InternalServerErrorException('Lỗi máy chủ khi cập nhật mức giá');
+    }
   }
 }

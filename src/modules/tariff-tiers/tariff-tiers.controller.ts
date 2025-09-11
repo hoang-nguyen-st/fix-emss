@@ -1,11 +1,12 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { JwtAccessTokenGuard } from '@app/modules/auth/guards/jwt-access-token.guard';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { TariffTiersService } from './tariff-tiers.service';
+import { TariffTierEntity } from '@Entity/index';
+import { GetTariffTierDto } from './dto/response/get-tariff-tier.dto';
+import { JwtAccessTokenGuard } from '../auth/guards/jwt-access-token.guard';
+import { UpdateTariffTierPriceDto } from './dto/request/update-tariff-tier.dto';
 import { ResponseItem } from '@app/common/dtos';
-import { TariffTierEntity } from './entities/tariff-tier.entity';
-import { GetTariffTierDto } from './dto/get-tariff-tier.dto';
-import { CreateManyTariffTiersDto } from './dto/tariff-tier.dto';
+import { CreateManyTariffTiersDto } from './dto/request/tariff-tier.dto';
 
 @Controller('tariff-tiers')
 @ApiTags('Tariff Tiers')
@@ -22,5 +23,16 @@ export class TariffTiersController {
   @Post('bulk')
   async createMany(@Body() dto: CreateManyTariffTiersDto): Promise<ResponseItem<TariffTierEntity[]>> {
     return this.tariffTiersService.createMany(dto);
+  }
+
+  @Patch('tariff-tier/:tariffTierId')
+  @ApiOperation({ summary: 'Update a pricing for TariffTier' })
+  @ApiParam({ name: 'tariffTierId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: UpdateTariffTierPriceDto })
+  updateTariffTierPrice(
+    @Param('tariffTierId', ParseUUIDPipe) tariffTierId: string,
+    @Body() body: UpdateTariffTierPriceDto
+  ) {
+    return this.tariffTiersService.updateTariffTierPrice(tariffTierId, body.unitPrice);
   }
 }

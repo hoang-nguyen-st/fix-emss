@@ -1,14 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { PricingElectricRulesService } from './pricing-electric-rules.service';
 import { BulkCreatePricingElectricRulesDto } from './dto/request/create-pricing-electric-rule.dto';
-import {
-  UpdatePriceByVoltAndPricingListDto,
-  UpdateTariffTierPriceDto,
-} from './dto/request/update-pricing-electric-rule.dto';
-import { ApiTags, ApiOperation, ApiParam, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
-import { ResponseItem } from '@app/common/dtos';
-import { PricingElectricRuleEntity, TariffTierEntity } from '@Entity/index';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { UpdatePriceByVoltAndPricingListDto } from './dto/request/update-pricing-electric-rule.dto';
 import { JwtAccessTokenGuard } from '../auth/guards/jwt-access-token.guard';
+import { PricingElectricRuleEntity, TariffTierEntity } from '@Entity/index';
+import { ResponseItem } from '@app/common/dtos';
 import { MeterTypePricing, PricingTemplateResponseData } from './dto/response/pricing-electric-rule.dto';
 
 @ApiTags('Pricing Electric Rules')
@@ -66,14 +63,6 @@ export class PricingElectricRulesController {
     @Body() updatePricingElectricRuleDto: UpdatePriceByVoltAndPricingListDto
   ) {
     return this.pricingElectricRulesService.updatePricingRule(id, updatePricingElectricRuleDto);
-  }
-
-  @Patch('tariff-tier/:id')
-  @ApiOperation({ summary: 'Update a pricing for TariffTier' })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @ApiBody({ type: UpdateTariffTierPriceDto })
-  updateTariffTierPrice(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateTariffTierPriceDto) {
-    return this.pricingElectricRulesService.updateTariffTierPrice(id, body.unitPrice);
   }
 
   @Delete(':id')
