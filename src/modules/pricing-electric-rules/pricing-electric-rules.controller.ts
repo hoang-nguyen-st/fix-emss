@@ -1,11 +1,8 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
 import { PricingElectricRulesService } from './pricing-electric-rules.service';
 import { CreatePricingElectricRuleDto } from './dto/request/create-pricing-electric-rule.dto';
-import {
-  UpdatePriceByVoltAndPricingListDto,
-  UpdateTariffTierPriceDto,
-} from './dto/request/update-pricing-electric-rule.dto';
-import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { UpdatePriceByVoltAndPricingListDto } from './dto/request/update-pricing-electric-rule.dto';
 
 @ApiTags('Pricing Electric Rules')
 @Controller('pricing-electric-rules')
@@ -48,14 +45,6 @@ export class PricingElectricRulesController {
     @Body() updatePricingElectricRuleDto: UpdatePriceByVoltAndPricingListDto
   ) {
     return this.pricingElectricRulesService.updatePricingRule(id, updatePricingElectricRuleDto);
-  }
-
-  @Patch('tariff-tier/:id')
-  @ApiOperation({ summary: 'Update a pricing for TariffTier' })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @ApiBody({ type: UpdateTariffTierPriceDto })
-  updateTariffTierPrice(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateTariffTierPriceDto) {
-    return this.pricingElectricRulesService.updateTariffTierPrice(id, body.unitPrice);
   }
 
   @Delete(':id')

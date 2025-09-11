@@ -166,30 +166,6 @@ export class PricingElectricRulesService {
     }
   }
 
-  async updateTariffTierPrice(id: string, unitPrice: number): Promise<ResponseItem<TariffTierEntity>> {
-    try {
-      const tier = await this.tariffTierRepository.findOne({
-        where: { id },
-      });
-
-      if (!tier) {
-        throw new NotFoundException('Không tìm thấy mức giá này');
-      }
-
-      Object.assign(tier, { unitPrice });
-
-      const result = await this.tariffTierRepository.save(tier);
-
-      return new ResponseItem(result, 'Cập nhật mức giá thành công');
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      this.logger.error(error);
-      throw new InternalServerErrorException('Lỗi máy chủ khi cập nhật mức giá');
-    }
-  }
-
   async updatePricingRule(
     id: string,
     updateDto: UpdatePriceByVoltAndPricingListDto

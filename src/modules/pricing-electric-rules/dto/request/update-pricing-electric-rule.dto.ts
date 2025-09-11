@@ -22,9 +22,3 @@ export class UpdatePriceByVoltAndPricingListDto {
   @IsNumber()
   unitPrice: number;
 }
-
-export class UpdateTariffTierPriceDto {
-  @ApiProperty({ example: 1500, description: 'Đơn giá mới cho Tariff Tier' })
-  @IsNumber()
-  unitPrice: number;
-}
