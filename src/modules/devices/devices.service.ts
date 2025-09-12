@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
 import { GetDeviceDto, GetTelemetryDto } from '@app/modules/devices/dto/get-device';
@@ -12,6 +12,9 @@ import { DataCrawlerService } from '../data-crawler/data-crawler.service';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { VoltageUnitEnum } from '@Constant/enums';
+import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
+import { AmigoService } from '../amigo/amigo.service';
+import { GetTodayEnergyAnalyticsDto } from './interface/get-total-enegry-analytics.interface';
 
 @Injectable()
 export class DeviceService {
@@ -20,8 +23,30 @@ export class DeviceService {
     @InjectRepository(DeviceEntity)
     private deviceRepository: Repository<DeviceEntity>,
     private readonly dataCrawlerService: DataCrawlerService,
-    private readonly httpService: HttpService
+    private readonly httpService: HttpService,
+    private readonly amigoService: AmigoService
   ) {}
+
+  async getTodayEnergyAnalytics(params: GetTodayEnergyAnalyticsDto): Promise<any> {
+    const { projectId, sensorId } = params;
+    const interval = params.interval ?? '9999m';
+    const systemType = params.systemType ?? 1;
+
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
+    const payload = {
+      projectId,
+      sensorId,
+      interval,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      systemType,
+    };
+
+    return this.amigoService.getSingleAnalyticalChart(payload);
+  }
 
   async create(deviceDto: CreateDeviceDto) {
     const device = this.deviceRepository.create(deviceDto);
@@ -184,5 +209,70 @@ export class DeviceService {
       this.logger.log(error);
       throw new BadRequestException('Failed to fetch telemetry data from external API');
     }
+  }
+
+  async getUnassignedDevices(workspaceId: string, params: GetDeviceDto): Promise<ResponsePaginate<DeviceEntity[]>> {
+    const queryBuilder = this.deviceRepository
+      .createQueryBuilder('device')
+      .leftJoin('device.locationDevices', 'locationDevices')
+      .where('locationDevices.id IS NULL')
+      .andWhere('device.workspaceId = :workspaceId', { workspaceId });
+
+    if (params.search !== undefined) {
+      queryBuilder.andWhere('unaccent(LOWER(device.name)) LIKE unaccent(LOWER(:name))', { name: `%${params.search}%` });
+    }
+
+    if (params.status !== undefined) {
+      queryBuilder.andWhere('device.status = :status', { status: params.status });
+    }
+
+    if (params.deviceType !== undefined) {
+      queryBuilder.andWhere('device.deviceType = :deviceType', { deviceType: params.deviceType });
+    }
+
+    const [devices, total] = await queryBuilder.skip(params.skip).take(params.take).getManyAndCount();
+
+    const pageMetaDto = new PageMetaDto({ itemCount: total, pageOptionsDto: params });
+
+    return new ResponsePaginate(devices, pageMetaDto, 'Lấy danh sách thiết bị thành công!');
+  }
+
+  async getDevicesInfoByIds(
+    workspaceId: string,
+    ids: string
+  ): Promise<ResponsePaginate<DetailTelemetryDeviceInterface>> {
+    const devices = await this.deviceRepository.find({
+      where: { id: In(ids.split(',').map((id) => id.trim())) },
+    });
+
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+
+    const result = await Promise.all(
+      devices.map(async (device) => {
+        try {
+          const analytics = await this.amigoService.getSingleAnalyticalChart({
+            projectId: workspaceId,
+            sensorId: device.sensorId,
+            interval: '9999m',
+            startTime: start.toISOString(),
+            endTime: end.toISOString(),
+            systemType: 1,
+          });
+
+          const importArr = analytics?.data?.Active_Energy_Import as any[] | undefined;
+          const value = Array.isArray(importArr) && importArr.length > 0 ? String(importArr[0][1]) : null;
+          return { device, lastestTimeSeriesValue: value };
+        } catch {
+          return { device, lastestTimeSeriesValue: null };
+        }
+      })
+    );
+    const pageMetaDto = new PageMetaDto({
+      itemCount: devices.length,
+      pageOptionsDto: { skip: 0, take: devices.length },
+    });
+    return new ResponsePaginate(result, pageMetaDto, 'Lấy danh sách thiết bị thành công!');
   }
 }
