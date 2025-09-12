@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { PricingElectricRuleEntity } from './entities/pricing-electric-rule.entity';
 import { BulkCreatePricingElectricRulesDto } from './dto/request/create-pricing-electric-rule.dto';
 import { UpdatePriceByVoltAndPricingListDto } from './dto/request/update-pricing-electric-rule.dto';
@@ -349,7 +349,7 @@ export class PricingElectricRulesService {
           locationType: {
             id: locationTypeId,
           },
-          workspaceId: null,
+          workspaceId: Not(IsNull()),
         },
         relations: ['locationType'],
         order: { level: OrderEnum.ASC },
