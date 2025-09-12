@@ -264,7 +264,7 @@ export class DataCrawlerService {
     for (const sensor of sensors) {
       try {
         const existingDevice = await this.deviceRepository.findOne({
-          where: { devEUI: sensor.devEUI },
+          where: { devEUI: sensor.devEUI, sensorId: sensor.sensorId },
         });
 
         if (existingDevice) {
@@ -280,6 +280,7 @@ export class DataCrawlerService {
         } else {
           const newDevice = this.deviceRepository.create({
             devEUI: sensor.devEUI,
+            sensorId: sensor.sensorId,
             name: sensor.name,
             description: sensor.description,
             status: true,
@@ -296,7 +297,7 @@ export class DataCrawlerService {
 
         syncedCount++;
       } catch (error) {
-        this.logger.error(`Failed to sync sensor ${sensor.devEUI}:`, error.message);
+        this.logger.error(`Failed to sync sensor ${sensor.sensorId}:`, error.message);
       }
     }
 
