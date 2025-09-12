@@ -5,6 +5,7 @@ import { TariffTierEntity } from '@Entity/index';
 import { GetTariffTierDto } from './dto/response/get-tariff-tier.dto';
 import { JwtAccessTokenGuard } from '../auth/guards/jwt-access-token.guard';
 import { UpdateTariffTierPriceDto } from './dto/request/update-tariff-tier.dto';
+import { ResponseItem } from '@app/common/dtos';
 
 @Controller('tariff-tiers')
 @ApiTags('Tariff Tiers')
@@ -18,7 +19,7 @@ export class TariffTiersController {
     return this.tariffTiersService.findAll(params);
   }
 
-  @Patch('tariff-tier/:tariffTierId')
+  @Patch(':tariffTierId')
   @ApiOperation({ summary: 'Update a pricing for TariffTier' })
   @ApiParam({ name: 'tariffTierId', type: 'string', format: 'uuid' })
   @ApiBody({ type: UpdateTariffTierPriceDto })
