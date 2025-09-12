@@ -16,9 +16,12 @@ import { LocationByWorkspaceDto } from './dto/get-location-by-workspace';
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
-  @Post()
-  create(@Body() createLocationDto: CreateLocationDto): Promise<ResponseItem<LocationEntity>> {
-    return this.locationsService.create(createLocationDto);
+  @Post('workspace/:workspaceId')
+  create(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() createLocationDto: CreateLocationDto
+  ): Promise<ResponseItem<LocationEntity>> {
+    return this.locationsService.create(workspaceId, createLocationDto);
   }
 
   @Get('workspace/:workspaceId')
