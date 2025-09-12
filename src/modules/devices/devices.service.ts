@@ -157,7 +157,7 @@ export class DeviceService {
   }
 
   async getTelemetryOfDevice(telemetryDto: GetTelemetryDto): Promise<ResponseItem<string[]>> {
-    const { projectId, sensorId, systemType } = telemetryDto;
+    const { projectId, sensorId, systemType, sensorName } = telemetryDto;
 
     try {
       const url = `https://amigo.veep.vn/gateway/iot/api/IoTSensor/PageSensorDataByProject`;
@@ -167,6 +167,7 @@ export class DeviceService {
             projectId,
             sensorid: sensorId,
             systemType: systemType ?? 1,
+            sensorname: sensorName,
           },
           headers: {
             Authorization: `Bearer ${this.dataCrawlerService.getAccessTokenForAnotherService()}`,
