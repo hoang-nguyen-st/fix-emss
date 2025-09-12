@@ -271,9 +271,6 @@ export class DataCrawlerService {
           existingDevice.name = sensor.name;
           existingDevice.description = sensor.description;
           existingDevice.status = true;
-          existingDevice.initialIndex = 0;
-          existingDevice.currentIndex = 0;
-          existingDevice.periodStartIndex = 0;
           existingDevice.workspaceId = projectId;
 
           await this.deviceRepository.save(existingDevice);
@@ -284,9 +281,6 @@ export class DataCrawlerService {
             name: sensor.name,
             description: sensor.description,
             status: true,
-            initialIndex: 0,
-            currentIndex: 0,
-            periodStartIndex: 0,
             workspaceId: projectId,
             createdBy: 'amigo',
             updatedBy: 'amigo',
