@@ -13,6 +13,10 @@ export class DeviceEntity extends AbstractEntity {
   devEUI: string;
 
   @Expose()
+  @Column({ type: 'varchar', length: 255, name: 'sensor_id' })
+  sensorId: string;
+
+  @Expose()
   @Column({ type: 'varchar', length: 255, name: 'name' })
   name: string;
 
