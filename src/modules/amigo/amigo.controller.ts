@@ -1,6 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { AmigoService } from './amigo.service';
+import { GetSingleAnalyticChartDto } from './dto/get-single-analytic-chart';
 
 @ApiTags('Amigo')
 @ApiBearerAuth()
@@ -23,7 +24,7 @@ export class AmigoController {
       required: ['projectId', 'sensorId', 'interval', 'startTime', 'endTime', 'systemType'],
     },
   })
-  async getSingleAnalyticalChart(@Body() body: any) {
+  async getSingleAnalyticalChart(@Body() body: GetSingleAnalyticChartDto) {
     return this.amigoService.getSingleAnalyticalChart(body);
   }
 }

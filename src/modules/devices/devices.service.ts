@@ -14,6 +14,7 @@ import { HttpService } from '@nestjs/axios';
 import { VoltageUnitEnum } from '@Constant/enums';
 import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
 import { AmigoService } from '../amigo/amigo.service';
+import { GetSingleAnalyticChartDto } from '../amigo/dto/get-single-analytic-chart';
 
 @Injectable()
 export class DeviceService {
@@ -26,12 +27,7 @@ export class DeviceService {
     private readonly amigoService: AmigoService
   ) {}
 
-  async getTodayEnergyAnalytics(params: {
-    projectId: string;
-    sensorId: string;
-    interval?: string;
-    systemType?: number;
-  }): Promise<any> {
+  async getTodayEnergyAnalytics(params: GetSingleAnalyticChartDto): Promise<any> {
     const { projectId, sensorId } = params;
     const interval = params.interval ?? '9999m';
     const systemType = params.systemType ?? 1;

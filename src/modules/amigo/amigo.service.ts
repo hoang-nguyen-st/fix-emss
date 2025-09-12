@@ -2,19 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { DataCrawlerService } from '@app/modules/data-crawler/data-crawler.service';
+import { GetSingleAnalyticChartDto } from './dto/get-single-analytic-chart';
 
 @Injectable()
 export class AmigoService {
   constructor(private readonly httpService: HttpService, private readonly dataCrawlerService: DataCrawlerService) {}
 
-  async getSingleAnalyticalChart(payload: {
-    projectId: string;
-    sensorId: string;
-    interval: string;
-    startTime: string;
-    endTime: string;
-    systemType: number;
-  }): Promise<any> {
+  async getSingleAnalyticalChart(payload: GetSingleAnalyticChartDto): Promise<any> {
     const accessToken = await this.dataCrawlerService.getCurrentAccessToken();
     const url = `https://amigo.veep.vn/gateway/iot/api/IoTSensor/Analytics/GetSingleAnalyticalChart`;
     const headers = {
