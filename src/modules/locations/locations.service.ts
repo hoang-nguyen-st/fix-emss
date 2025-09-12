@@ -11,6 +11,7 @@ import { PriceTypesService } from '../price-types/price-types.service';
 import { UsersService } from '@UsersModule/users.service';
 import { LocationTypeEnum } from '@Constant/enums';
 import { LocationByWorkspaceDto } from './dto/get-location-by-workspace';
+import { LocationDeviceService } from '../location-devices/location-device.service';
 
 @Injectable()
 export class LocationsService {
@@ -19,10 +20,11 @@ export class LocationsService {
     private locationsRepository: Repository<LocationEntity>,
     private locationTypeService: LocationTypesService,
     private priceTypeService: PriceTypesService,
-    private userService: UsersService
+    private userService: UsersService,
+    private locationDeviceService: LocationDeviceService
   ) {}
 
-  async create(createLocationDto: CreateLocationDto): Promise<ResponseItem<LocationEntity>> {
+  async create(workspaceId: string, createLocationDto: CreateLocationDto): Promise<ResponseItem<LocationEntity>> {
     const locationType = await this.locationTypeService.findOneById(createLocationDto.locationTypeId);
     const user = await this.userService.findOne(createLocationDto.userId);
 
@@ -40,12 +42,18 @@ export class LocationsService {
       description: createLocationDto.description,
       initialDate: new Date(createLocationDto.initialDate),
       locationType,
+      workspaceId,
       user,
       ...(priceType ? { priceType } : {}),
     };
 
     const location = this.locationsRepository.create(locationData);
     const savedLocation = await this.locationsRepository.save(location);
+
+    if (createLocationDto.devices && createLocationDto.devices.length > 0) {
+      await this.locationDeviceService.createLocationDeviceRelationships(savedLocation.id, createLocationDto.devices);
+    } else {
+    }
 
     return new ResponseItem(savedLocation, 'Tạo địa điểm thành công!');
   }
