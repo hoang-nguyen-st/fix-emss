@@ -10,7 +10,7 @@ import { DeviceTotalType } from '@app/modules/devices/interface/total-device.int
 import { SettingDeviceDto } from '@app/modules/devices/dto/setting-device.dto';
 import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
 import { AmigoService } from '../amigo/amigo.service';
-import { GetSingleAnalyticChartDto } from '../amigo/dto/get-single-analytic-chart';
+import { GetTodayEnergyAnalyticsDto } from './interface/get-total-enegry-analytics.interface';
 
 @Injectable()
 export class DeviceService {
@@ -20,7 +20,7 @@ export class DeviceService {
     private readonly amigoService: AmigoService
   ) {}
 
-  async getTodayEnergyAnalytics(params: GetSingleAnalyticChartDto): Promise<any> {
+  async getTodayEnergyAnalytics(params: GetTodayEnergyAnalyticsDto): Promise<any> {
     const { projectId, sensorId } = params;
     const interval = params.interval ?? '9999m';
     const systemType = params.systemType ?? 1;
