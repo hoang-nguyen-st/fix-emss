@@ -31,6 +31,10 @@ export class GetTelemetryDto {
   @IsNotEmpty()
   sensorId: string;
 
+  @ApiProperty({ required: true })
+  @IsNotEmpty()
+  sensorName: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   systemType?: string;
