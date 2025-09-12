@@ -52,7 +52,6 @@ export class LocationsService {
 
     if (createLocationDto.devices && createLocationDto.devices.length > 0) {
       await this.locationDeviceService.createLocationDeviceRelationships(savedLocation.id, createLocationDto.devices);
-    } else {
     }
 
     return new ResponseItem(savedLocation, 'Tạo địa điểm thành công!');
