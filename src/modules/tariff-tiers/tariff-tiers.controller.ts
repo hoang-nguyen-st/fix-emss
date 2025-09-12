@@ -25,7 +25,7 @@ export class TariffTiersController {
     return this.tariffTiersService.createMany(dto);
   }
 
-  @Patch('tariff-tier/:tariffTierId')
+  @Patch(':tariffTierId')
   @ApiOperation({ summary: 'Update a pricing for TariffTier' })
   @ApiParam({ name: 'tariffTierId', type: 'string', format: 'uuid' })
   @ApiBody({ type: UpdateTariffTierPriceDto })
