@@ -6,10 +6,11 @@ import { DeviceWithInitDto } from '@app/modules/devices/interface/detail-telemet
 
 @Injectable()
 export class LocationDeviceService {
+  private readonly logger = new Logger(LocationDeviceService.name);
+
   constructor(
     @InjectRepository(LocationDeviceEntity)
-    private locationDeviceRepository: Repository<LocationDeviceEntity>,
-    private readonly logger: Logger
+    private locationDeviceRepository: Repository<LocationDeviceEntity>
   ) {}
 
   async createLocationDeviceRelationships(
