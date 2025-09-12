@@ -64,24 +64,16 @@ export class DeviceEntity extends AbstractEntity {
   meterType: MeterTypeEnum;
 
   @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'initial_index' })
-  initialIndex: number;
-
-  @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'current_index' })
-  currentIndex: number;
-
-  @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'period_start_index' })
-  periodStartIndex: number;
-
-  @Expose()
   @Column({ type: 'uuid', name: 'workspace_id' })
   workspaceId: string;
 
   @Expose()
   @Column({ type: 'uuid', nullable: true, name: 'location_id' })
   locationId: string;
+
+  @Expose()
+  @Column({ type: 'boolean', name: 'is_disabled', default: false })
+  isDisabled: boolean;
 
   @ManyToOne(() => WorkspaceEntity)
   @JoinColumn({ name: 'workspace_id' })
