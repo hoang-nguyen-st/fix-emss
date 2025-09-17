@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Raw, Repository } from 'typeorm';
+import { Raw, Repository, FindManyOptions } from 'typeorm';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
 import { GetDeviceDto } from '@app/modules/devices/dto/get-device';
@@ -24,7 +24,7 @@ export class DeviceService {
   async findAll(id: string, params: GetDeviceDto) {
     const { skip, take, search, deviceType, location, status } = params;
 
-    const whereConditions: any = {
+    const whereConditions: FindManyOptions<DeviceEntity>['where'] = {
       workspaceId: id,
     };
 
@@ -43,7 +43,7 @@ export class DeviceService {
     }
 
     if (location !== undefined) {
-      whereConditions.location = { id: location };
+      whereConditions.locationDevices = { location: { id: location } };
     }
 
     const [result, total] = await this.deviceRepository.findAndCount({
@@ -56,6 +56,7 @@ export class DeviceService {
         deviceType: true,
         fieldCalculate: true,
         status: true,
+        devEUI: true,
         locationDevices: {
           id: true,
           location: {
