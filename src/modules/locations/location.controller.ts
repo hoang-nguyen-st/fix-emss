@@ -6,8 +6,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAccessTokenGuard } from '@app/modules/auth/guards/jwt-access-token.guard';
 import { GetLocationDto } from './dto/get-location.dto';
 import { ResponseItem, ResponsePaginate } from '@app/common/dtos';
-import { LocationDto } from './dto/location.dto';
 import { LocationEntity } from './entities/location.entity';
+import { LocationByWorkspaceDto } from './dto/get-location-by-workspace';
 
 @Controller('locations')
 @ApiTags('Locations')
@@ -16,14 +16,20 @@ import { LocationEntity } from './entities/location.entity';
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
-  @Post()
-  create(@Body() createLocationDto: CreateLocationDto): Promise<ResponseItem<LocationEntity>> {
-    return this.locationsService.create(createLocationDto);
+  @Post('workspace/:workspaceId')
+  create(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() createLocationDto: CreateLocationDto
+  ): Promise<ResponseItem<LocationEntity>> {
+    return this.locationsService.create(workspaceId, createLocationDto);
   }
 
-  @Get('all')
-  getAllLocations(@Query() params: GetLocationDto): Promise<ResponsePaginate<LocationDto[]>> {
-    return this.locationsService.getAllLocations(params);
+  @Get('workspace/:workspaceId')
+  getLocationsByWorkspace(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Query() params: GetLocationDto
+  ): Promise<ResponsePaginate<LocationByWorkspaceDto[]>> {
+    return this.locationsService.getLocationsByWorkspace(workspaceId, params);
   }
 
   @Get()

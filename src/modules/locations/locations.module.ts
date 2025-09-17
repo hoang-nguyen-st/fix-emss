@@ -6,9 +6,16 @@ import { LocationsService } from './locations.service';
 import { LocationTypesModule } from '../location-types/location-types.module';
 import { PriceTypesModule } from '../price-types/price-types.module';
 import { UsersModule } from '../users/users.module';
+import { LocationDeviceModule } from '../location-devices/location-device.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([LocationEntity]), LocationTypesModule, PriceTypesModule, UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([LocationEntity]),
+    LocationTypesModule,
+    PriceTypesModule,
+    UsersModule,
+    LocationDeviceModule,
+  ],
   controllers: [LocationsController],
   providers: [LocationsService],
   exports: [LocationsService],

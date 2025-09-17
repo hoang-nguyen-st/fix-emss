@@ -6,9 +6,10 @@ import { DeviceController } from './devices.controller';
 import { LocationsModule } from '../locations/locations.module';
 import { DataCrawlerModule } from '../data-crawler/data-crawler.module';
 import { HttpModule } from '@nestjs/axios';
+import { AmigoModule } from '../amigo/amigo.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DeviceEntity]), LocationsModule, DataCrawlerModule, HttpModule],
+  imports: [TypeOrmModule.forFeature([DeviceEntity]), LocationsModule, DataCrawlerModule, HttpModule, AmigoModule],
   controllers: [DeviceController],
   providers: [DeviceService],
   exports: [DeviceService],

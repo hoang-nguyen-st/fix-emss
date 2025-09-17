@@ -4,6 +4,7 @@ import { LocationTypeEntity } from '@app/modules/location-types/entities/locatio
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
 import { Expose } from 'class-transformer';
+import { TariffTierEnum } from '@Constant/enums';
 
 @Entity('tariff_tiers')
 export class TariffTierEntity extends AbstractEntity {
@@ -25,7 +26,7 @@ export class TariffTierEntity extends AbstractEntity {
 
   @Expose()
   @Column({ type: 'varchar', length: 255, name: 'tariff_tier_enum' })
-  tariffTierEnum: string;
+  tariffTierEnum: TariffTierEnum;
 
   @Expose()
   @Column({ type: 'uuid', name: 'location_type_id', nullable: true })

@@ -1,22 +1,25 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { PricingElectricRulesService } from './pricing-electric-rules.service';
-import { CreatePricingElectricRuleDto } from './dto/request/create-pricing-electric-rule.dto';
-import {
-  UpdatePriceByVoltAndPricingListDto,
-  UpdateTariffTierPriceDto,
-} from './dto/request/update-pricing-electric-rule.dto';
-import { ApiTags, ApiOperation, ApiParam, ApiBody } from '@nestjs/swagger';
+import { BulkCreatePricingElectricRulesDto } from './dto/request/create-pricing-electric-rule.dto';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { UpdatePriceByVoltAndPricingListDto } from './dto/request/update-pricing-electric-rule.dto';
+import { JwtAccessTokenGuard } from '../auth/guards/jwt-access-token.guard';
+import { PricingElectricRuleEntity, TariffTierEntity } from '@Entity/index';
+import { ResponseItem } from '@app/common/dtos';
+import { MeterTypePricing, PricingTemplateResponseData } from './dto/response/pricing-electric-rule.dto';
 
 @ApiTags('Pricing Electric Rules')
+@ApiBearerAuth()
+@UseGuards(JwtAccessTokenGuard)
 @Controller('pricing-electric-rules')
 export class PricingElectricRulesController {
   constructor(private readonly pricingElectricRulesService: PricingElectricRulesService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new pricing electric rule' })
-  @ApiBody({ type: CreatePricingElectricRuleDto })
-  create(@Body() createPricingElectricRuleDto: CreatePricingElectricRuleDto) {
-    return this.pricingElectricRulesService.create(createPricingElectricRuleDto);
+  @Post('bulk-create')
+  async bulkCreatePricingElectricRules(
+    @Body() bulkCreateDto: BulkCreatePricingElectricRulesDto
+  ): Promise<ResponseItem<PricingElectricRuleEntity[]>> {
+    return await this.pricingElectricRulesService.bulkCreatePricingElectricRules(bulkCreateDto);
   }
 
   @Get()
@@ -32,11 +35,23 @@ export class PricingElectricRulesController {
     return this.pricingElectricRulesService.findOne(id);
   }
 
-  @Get('/by-location-type/:locationTypeId')
+  @Get('by-location-type/:locationTypeId')
   @ApiOperation({ summary: 'Get pricing rules by location type' })
   @ApiParam({ name: 'locationTypeId', type: 'string' })
-  getByLocationType(@Param('locationTypeId') locationTypeId: string) {
-    return this.pricingElectricRulesService.getPricingByLocationType(locationTypeId);
+  getByLocationTypeTemplate(
+    @Param('locationTypeId', ParseUUIDPipe) locationTypeId: string
+  ): Promise<ResponseItem<PricingTemplateResponseData>> {
+    return this.pricingElectricRulesService.getPricingTemplateByLocationType(locationTypeId);
+  }
+
+  @Get(':workspaceId/by-location-type/:locationTypeId')
+  @ApiOperation({ summary: 'Get pricing rules by location type' })
+  @ApiParam({ name: 'locationTypeId', type: 'string' })
+  getByWorkspaceAndLocationType(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('locationTypeId', ParseUUIDPipe) locationTypeId: string
+  ): Promise<ResponseItem<TariffTierEntity[] | MeterTypePricing>> {
+    return this.pricingElectricRulesService.getPricingByLocationType(workspaceId, locationTypeId);
   }
 
   @Patch(':id')
@@ -48,14 +63,6 @@ export class PricingElectricRulesController {
     @Body() updatePricingElectricRuleDto: UpdatePriceByVoltAndPricingListDto
   ) {
     return this.pricingElectricRulesService.updatePricingRule(id, updatePricingElectricRuleDto);
-  }
-
-  @Patch('tariff-tier/:id')
-  @ApiOperation({ summary: 'Update a pricing for TariffTier' })
-  @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
-  @ApiBody({ type: UpdateTariffTierPriceDto })
-  updateTariffTierPrice(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateTariffTierPriceDto) {
-    return this.pricingElectricRulesService.updateTariffTierPrice(id, body.unitPrice);
   }
 
   @Delete(':id')
