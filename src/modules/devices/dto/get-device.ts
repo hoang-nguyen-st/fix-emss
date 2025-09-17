@@ -15,10 +15,6 @@ export class GetDeviceDto extends PageOptionsDto {
   @ApiProperty({ required: false })
   @IsOptional()
   location: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  search?: string;
 }
 
 export class GetTelemetryDto {
