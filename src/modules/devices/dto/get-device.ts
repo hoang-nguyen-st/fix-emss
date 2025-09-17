@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 import { PageOptionsDto } from '@app/common/dtos';
-import { DeviceType } from '@app/modules/devices/interface/device.interface';
 import { ApiProperty } from '@nestjs/swagger';
+import { DeviceTypeEnum } from '@Constant/enums';
 
 export class GetDeviceDto extends PageOptionsDto {
   @ApiProperty({ required: false })
@@ -10,7 +10,7 @@ export class GetDeviceDto extends PageOptionsDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  deviceType: DeviceType;
+  deviceType: DeviceTypeEnum;
 
   @ApiProperty({ required: false })
   @IsOptional()
