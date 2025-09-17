@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Raw, Repository } from 'typeorm';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
 import { GetDeviceDto } from '@app/modules/devices/dto/get-device';
@@ -22,52 +22,59 @@ export class DeviceService {
   }
 
   async findAll(id: string, params: GetDeviceDto) {
-    const queryBuilder = this.deviceRepository
-      .createQueryBuilder('device')
-      .leftJoinAndSelect('device.location', 'location')
-      .where('device.workspace_id = :workspaceId', { workspaceId: id });
+    const { skip, take, search, deviceType, location, status } = params;
 
-    if (params.search !== undefined) {
-      queryBuilder.andWhere('unaccent(LOWER(device.name)) LIKE unaccent(LOWER(:name))', { name: `%${params.search}%` });
+    const whereConditions: any = {
+      workspaceId: id,
+    };
+
+    if (search !== undefined) {
+      whereConditions.name = Raw((alias) => `unaccent(lower(${alias})) ILIKE unaccent(lower(:search))`, {
+        search: `%${search}%`,
+      });
     }
 
-    if (params.status !== undefined) {
-      queryBuilder.andWhere('device.status = :status', { status: params.status });
+    if (status !== undefined) {
+      whereConditions.status = status;
     }
 
-    if (params.deviceType !== undefined) {
-      queryBuilder.andWhere('device.deviceType = :deviceType', { deviceType: params.deviceType });
+    if (deviceType !== undefined) {
+      whereConditions.deviceType = deviceType;
     }
 
-    if (params.location !== undefined) {
-      queryBuilder.andWhere('location.id = :locationId', { locationId: params.location });
+    if (location !== undefined) {
+      whereConditions.location = { id: location };
     }
 
-    const [result, total] = await queryBuilder
-      .orderBy(`device.${params.orderBy}`, params.order)
-      .skip(params.skip)
-      .take(params.take)
-      .getManyAndCount();
-
-    const devicesWithLocationName = result.map((device: any) => {
-      const locationName = device.location?.name || null;
-      return {
-        id: device.id,
-        devEUI: device.devEUI,
-        deviceType: device.deviceType,
-        name: device.name,
-        status: device.status,
-        voltageUnit: device.voltageUnit,
-        voltageValue: device.voltageValue,
-        fieldCalculate: device.fieldCalculate,
-        createdAt: device.createdAt,
-        locationName,
-      };
+    const [result, total] = await this.deviceRepository.findAndCount({
+      where: {
+        ...whereConditions,
+      },
+      select: {
+        id: true,
+        name: true,
+        deviceType: true,
+        fieldCalculate: true,
+        status: true,
+        locationDevices: {
+          id: true,
+          location: {
+            name: true,
+          },
+        },
+      },
+      relations: {
+        locationDevices: {
+          location: true,
+        },
+      },
+      skip: skip,
+      take: take,
     });
 
     const pageMetaDto = new PageMetaDto({ itemCount: total, pageOptionsDto: params });
 
-    return new ResponsePaginate(devicesWithLocationName, pageMetaDto, 'Lấy những thiết bị thành công!');
+    return new ResponsePaginate(result, pageMetaDto, 'Lấy những thiết bị thành công!');
   }
 
   async findOne(id: string): Promise<ResponseItem<DeviceEntity>> {
