@@ -15,6 +15,7 @@ import { VoltageUnitEnum } from '@Constant/enums';
 import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
 import { AmigoService } from '../amigo/amigo.service';
 import { GetTodayEnergyAnalyticsDto } from './interface/get-total-enegry-analytics.interface';
+import { DeviceDetailConsumptionDto } from './dto/device-detail-consumption.dto';
 
 @Injectable()
 export class DeviceService {
@@ -110,20 +111,40 @@ export class DeviceService {
     return new ResponsePaginate(result, pageMetaDto, 'Lấy những thiết bị thành công!');
   }
 
-  async findOne(id: string): Promise<ResponseItem<DeviceEntity>> {
+  async findOne(id: string, workspaceId: string, query: DeviceDetailConsumptionDto) {
     const device = await this.deviceRepository.findOne({
       where: { id },
-      relations: {
-        location: true,
-        workspace: true,
-      },
     });
 
     if (!device) {
       throw new NotFoundException(`Thiết bị với id là ${id} không tìm thấy`);
     }
 
-    return new ResponseItem(device, 'Lấy thông tin thiết bị thành công!');
+    if (!device.fieldCalculate) {
+      throw new NotFoundException(`Thiết bị với id là ${id} không có fieldCalculate`);
+    }
+
+    const analytics = await this.amigoService.getSingleAnalyticalChart({
+      projectId: workspaceId,
+      sensorId: device.sensorId,
+      interval: query.interval,
+      startTime: query.startTime,
+      endTime: query.endTime,
+      systemType: 1,
+    });
+
+    const fieldData = analytics?.data?.[device?.fieldCalculate] as unknown as unknown[] | undefined;
+    const formatted = Array.isArray(fieldData)
+      ? fieldData
+          .filter((row) => Array.isArray(row) && row.length >= 2)
+          .map((row: any[]) => ({ datetime: String(row[0]), data: Number(row[1]) }))
+      : [];
+
+    const start = query.skip;
+    const paged = formatted.slice(start, start + query.take);
+
+    const pageMetaDto = new PageMetaDto({ itemCount: formatted.length, pageOptionsDto: query });
+    return new ResponsePaginate(paged, pageMetaDto, 'Lấy thông tin thiết bị thành công!');
   }
 
   async update(id: string, deviceDto: UpdateDeviceDto) {
@@ -264,14 +285,14 @@ export class DeviceService {
           const analytics = await this.amigoService.getSingleAnalyticalChart({
             projectId: workspaceId,
             sensorId: device.sensorId,
-            interval: '9999m',
+            interval: '1d',
             startTime: start.toISOString(),
             endTime: end.toISOString(),
             systemType: 1,
           });
 
-          const importArr = analytics?.data?.Active_Energy_Import as any[] | undefined;
-          const value = Array.isArray(importArr) && importArr.length > 0 ? String(importArr[0][1]) : null;
+          const fieldData = analytics?.data?.[device?.fieldCalculate] as any[] | undefined;
+          const value = Array.isArray(fieldData) && fieldData.length > 0 ? String(fieldData[0][1]) : null;
           return { device, lastestTimeSeriesValue: value };
         } catch {
           return { device, lastestTimeSeriesValue: null };
