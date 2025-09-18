@@ -205,14 +205,14 @@ export class DeviceService {
           const analytics = await this.amigoService.getSingleAnalyticalChart({
             projectId: workspaceId,
             sensorId: device.sensorId,
-            interval: '9999m',
+            interval: '1d',
             startTime: start.toISOString(),
             endTime: end.toISOString(),
             systemType: 1,
           });
 
-          const importArr = analytics?.data?.Active_Energy_Import as any[] | undefined;
-          const value = Array.isArray(importArr) && importArr.length > 0 ? String(importArr[0][1]) : null;
+          const fieldData = analytics?.data?.[device?.fieldCalculate] as any[] | undefined;
+          const value = Array.isArray(fieldData) && fieldData.length > 0 ? String(fieldData[0][1]) : null;
           return { device, lastestTimeSeriesValue: value };
         } catch {
           return { device, lastestTimeSeriesValue: null };
