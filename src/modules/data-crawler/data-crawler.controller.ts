@@ -83,9 +83,18 @@ export class DataCrawlerController {
     message: string;
     workspaceCount: number;
     deviceCount: number;
+    locationDeviceCount: number;
     lastSyncTime?: Date;
     nextSyncTime?: Date;
   }> {
     return await this.dataCrawlerService.getSyncStatus();
+  }
+
+  @Post('sync-location-devices')
+  @ApiOperation({ summary: 'Sync data for all location devices from Amigo API' })
+  @ApiResponse({ status: 200, description: 'Location devices synced successfully' })
+  @ApiResponse({ status: 500, description: 'Failed to sync location devices' })
+  async syncLocationDevices(): Promise<{ success: boolean; message: string; syncedCount: number }> {
+    return await this.dataCrawlerService.syncLocationDevicesData();
   }
 }
