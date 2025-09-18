@@ -19,6 +19,30 @@ export class LocationDeviceEntity extends AbstractEntity {
   periodStartIndex: number;
 
   @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'mid_start_index' })
+  midStartIndex: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'mid_current_index' })
+  midCurrentIndex: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'peak_start_index' })
+  peakStartIndex: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'peak_current_index' })
+  peakCurrentIndex: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'off_peak_start_index' })
+  offPeakStartIndex: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'off_peak_current_index' })
+  offPeakCurrentIndex: number;
+
+  @Expose()
   @Column({ type: 'uuid', name: 'device_id' })
   deviceId: string;
 
