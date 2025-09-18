@@ -32,9 +32,9 @@ export class LocationsController {
     return this.locationsService.getLocationsByWorkspace(workspaceId, params);
   }
 
-  @Get()
-  findAll() {
-    return this.locationsService.findAll();
+  @Get('workspace/:workspaceId/get-all')
+  findAll(@Param('workspaceId', ParseUUIDPipe) workspaceId: string): Promise<LocationEntity[]> {
+    return this.locationsService.findAll(workspaceId);
   }
 
   @Get(':id')

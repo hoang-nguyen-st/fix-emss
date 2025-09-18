@@ -124,8 +124,14 @@ export class LocationsService {
     return new ResponsePaginate(locations, pageMetaDto, 'Lấy danh sách vị trí thành công!');
   }
 
-  findAll() {
-    return this.locationsRepository.find();
+  async findAll(workspaceId: string): Promise<LocationEntity[]> {
+    return await this.locationsRepository.find({
+      where: { workspaceId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
   }
 
   async findLocationById(id: string) {
