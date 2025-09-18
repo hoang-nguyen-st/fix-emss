@@ -11,6 +11,7 @@ import { SettingDeviceDto } from '@app/modules/devices/dto/setting-device.dto';
 import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
 import { AmigoService } from '../amigo/amigo.service';
 import { GetTodayEnergyAnalyticsDto } from './interface/get-total-enegry-analytics.interface';
+import { DeviceDetailConsumptionDto } from './dto/device-detail-consumption.dto';
 
 @Injectable()
 export class DeviceService {
@@ -94,20 +95,40 @@ export class DeviceService {
     return new ResponsePaginate(devicesWithLocationName, pageMetaDto, 'Lấy những thiết bị thành công!');
   }
 
-  async findOne(id: string): Promise<ResponseItem<DeviceEntity>> {
+  async findOne(id: string, workspaceId: string, query: DeviceDetailConsumptionDto) {
     const device = await this.deviceRepository.findOne({
       where: { id },
-      relations: {
-        location: true,
-        workspace: true,
-      },
     });
 
     if (!device) {
       throw new NotFoundException(`Thiết bị với id là ${id} không tìm thấy`);
     }
 
-    return new ResponseItem(device, 'Lấy thông tin thiết bị thành công!');
+    if (!device.fieldCalculate) {
+      throw new NotFoundException(`Thiết bị với id là ${id} không có fieldCalculate`);
+    }
+
+    const analytics = await this.amigoService.getSingleAnalyticalChart({
+      projectId: workspaceId,
+      sensorId: device.sensorId,
+      interval: query.interval,
+      startTime: query.startTime,
+      endTime: query.endTime,
+      systemType: 1,
+    });
+
+    const fieldData = analytics?.data?.[device?.fieldCalculate] as unknown as unknown[] | undefined;
+    const formatted = Array.isArray(fieldData)
+      ? fieldData
+          .filter((row) => Array.isArray(row) && row.length >= 2)
+          .map((row: any[]) => ({ datetime: String(row[0]), data: Number(row[1]) }))
+      : [];
+
+    const start = query.skip;
+    const paged = formatted.slice(start, start + query.take);
+
+    const pageMetaDto = new PageMetaDto({ itemCount: formatted.length, pageOptionsDto: query });
+    return new ResponsePaginate(paged, pageMetaDto, 'Lấy thông tin thiết bị thành công!');
   }
 
   async update(id: string, deviceDto: UpdateDeviceDto) {

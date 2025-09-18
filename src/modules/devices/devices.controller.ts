@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { DeviceService } from '@app/modules/devices/devices.service';
 import { CreateDeviceDto } from '@app/modules/devices/dto/create-device.dto';
 import { UpdateDeviceDto } from '@app/modules/devices/dto/update-device.dto';
@@ -10,6 +10,7 @@ import { DeviceEntity } from './entities/device.entity';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAccessTokenGuard } from '@app/modules/auth/guards/jwt-access-token.guard';
 import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
+import { DeviceDetailConsumptionDto } from './dto/device-detail-consumption.dto';
 
 @ApiTags('Devices')
 @ApiBearerAuth()
@@ -49,9 +50,13 @@ export class DeviceController {
     return this.deviceService.getDevicesInfoByIds(workspaceId, ids);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string): Promise<ResponseItem<DeviceEntity>> {
-    return this.deviceService.findOne(id);
+  @Get(':id/consumption/workspace/:workspaceId')
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('workspaceId') workspaceId: string,
+    @Query() query: DeviceDetailConsumptionDto
+  ) {
+    return this.deviceService.findOne(id, workspaceId, query);
   }
 
   @Patch(':id')
