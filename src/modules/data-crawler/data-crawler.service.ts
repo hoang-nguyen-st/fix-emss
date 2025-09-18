@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
+import { LocationDeviceEntity } from '@app/modules/location-devices/entities/location-device.entity';
 import { AmigoApiResponseDto, AmigoSensorDto, AmigoProjectApiResponseDto, AmigoProjectDto } from './dto';
 import { plainToInstance } from 'class-transformer';
 
@@ -28,7 +29,9 @@ export class DataCrawlerService {
     @InjectRepository(DeviceEntity)
     private readonly deviceRepository: Repository<DeviceEntity>,
     @InjectRepository(WorkspaceEntity)
-    private readonly workspaceRepository: Repository<WorkspaceEntity>
+    private readonly workspaceRepository: Repository<WorkspaceEntity>,
+    @InjectRepository(LocationDeviceEntity)
+    private readonly locationDeviceRepository: Repository<LocationDeviceEntity>
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.authConfig = {
@@ -77,12 +80,16 @@ export class DataCrawlerService {
     message: string;
     workspaceCount: number;
     deviceCount: number;
+    locationDeviceCount: number;
     lastSyncTime?: Date;
     nextSyncTime?: Date;
   }> {
     try {
       const workspaces = await this.workspaceRepository.find();
       const devices = await this.deviceRepository.find();
+      const locationDevices = await this.locationDeviceRepository.find({
+        relations: ['device'],
+      });
 
       const now = new Date();
       const nextSync = new Date(now.getTime() + 6 * 60 * 60 * 1000);
@@ -92,6 +99,7 @@ export class DataCrawlerService {
         message: 'Sync status retrieved successfully',
         workspaceCount: workspaces.length,
         deviceCount: devices.length,
+        locationDeviceCount: locationDevices.length,
         lastSyncTime: now,
         nextSyncTime: nextSync,
       };
@@ -102,6 +110,7 @@ export class DataCrawlerService {
         message: `Failed to get sync status: ${error.message}`,
         workspaceCount: 0,
         deviceCount: 0,
+        locationDeviceCount: 0,
       };
     }
   }
@@ -132,6 +141,17 @@ export class DataCrawlerService {
       this.logger.log('Scheduled auto-sync completed successfully');
     } catch (error) {
       this.logger.error('Scheduled auto-sync failed:', error.message);
+    }
+  }
+
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async scheduledLocationDevicesSync(): Promise<void> {
+    try {
+      this.logger.log('Starting scheduled location devices sync...');
+      await this.syncLocationDevicesData();
+      this.logger.log('Scheduled location devices sync completed successfully');
+    } catch (error) {
+      this.logger.error('Scheduled location devices sync failed:', error.message);
     }
   }
 
@@ -426,5 +446,101 @@ export class DataCrawlerService {
 
   public getAccessTokenForAnotherService(): string {
     return this.accessToken;
+  }
+
+  public async syncLocationDevicesData(): Promise<{ success: boolean; message: string; syncedCount: number }> {
+    try {
+      this.logger.log('Starting sync for location devices...');
+
+      const locationDevices = await this.locationDeviceRepository.find({
+        relations: ['device'],
+      });
+
+      this.logger.log(`Found ${locationDevices.length} location devices to sync`);
+
+      if (locationDevices.length === 0) {
+        this.logger.log('No location devices found to sync');
+        return {
+          success: true,
+          message: 'No location devices found to sync',
+          syncedCount: 0,
+        };
+      }
+
+      let syncedCount = 0;
+      const accessToken = await this.getCurrentAccessToken();
+
+      for (const locationDevice of locationDevices) {
+        try {
+          if (!locationDevice.device || !locationDevice.device.sensorId) {
+            this.logger.warn(`Skipping location device ${locationDevice.id} - no device or sensorId`);
+            continue;
+          }
+
+          const currentTime = new Date();
+          const startTime = new Date(currentTime.getTime() - 24 * 60 * 60 * 1000);
+          const endTime = currentTime;
+
+          const payload = {
+            projectId: locationDevice.device.workspaceId,
+            sensorId: locationDevice.device.sensorId,
+            interval: '1d',
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            systemType: 1,
+          };
+
+          const url = `${this.apiEndpoint}/gateway/iot/api/IoTSensor/Analytics/GetSingleAnalyticalChart`;
+          const headers = {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          };
+
+          const response = await firstValueFrom(this.httpService.post(url, payload, { headers }));
+
+          if (response.data && response.data.isSuccess && response.data.data) {
+            const chartData = response.data.data;
+
+            let latestIndex = locationDevice.currentIndex;
+
+            if (chartData && chartData.length > 0) {
+              const lastDataPoint = chartData[chartData.length - 1];
+              if (lastDataPoint && typeof lastDataPoint === 'number') {
+                latestIndex = lastDataPoint;
+              } else if (lastDataPoint && lastDataPoint.value !== undefined) {
+                latestIndex = lastDataPoint.value;
+              }
+            }
+
+            if (latestIndex !== locationDevice.currentIndex) {
+              locationDevice.currentIndex = latestIndex;
+              await this.locationDeviceRepository.save(locationDevice);
+
+              this.logger.log(
+                `Updated currentIndex for location device ${locationDevice.id}: ${locationDevice.currentIndex}`
+              );
+              syncedCount++;
+            }
+          }
+        } catch (error) {
+          this.logger.error(`Failed to sync data for location device ${locationDevice.id}:`, error.message);
+        }
+      }
+
+      this.logger.log(`Location devices sync completed. Synced: ${syncedCount}/${locationDevices.length}`);
+
+      return {
+        success: true,
+        message: `Successfully synced ${syncedCount} location devices`,
+        syncedCount,
+      };
+    } catch (error) {
+      this.logger.error('Failed to sync location devices data:', error.message);
+      return {
+        success: false,
+        message: `Failed to sync location devices data: ${error.message}`,
+        syncedCount: 0,
+      };
+    }
   }
 }
