@@ -23,7 +23,7 @@ export class DeviceController {
     return this.deviceService.create(createDeviceDto);
   }
 
-  @Get(':id/all')
+  @Get(':id/get-all')
   findAll(@Param('id', ParseUUIDPipe) id: string, @Query() params: GetDeviceDto) {
     return this.deviceService.findAll(id, params);
   }
