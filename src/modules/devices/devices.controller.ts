@@ -56,12 +56,17 @@ export class DeviceController {
   }
 
   @Get(':id/consumption/workspace/:workspaceId')
-  findOne(
+  getConsumption(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('workspaceId') workspaceId: string,
     @Query() query: DeviceDetailConsumptionDto
   ) {
-    return this.deviceService.findOne(id, workspaceId, query);
+    return this.deviceService.getConsumption(id, workspaceId, query);
+  }
+
+  @Get('detail/:id')
+  getDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.deviceService.getDetail(id);
   }
 
   @Patch(':id')
