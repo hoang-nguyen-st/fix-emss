@@ -95,7 +95,7 @@ export class DeviceService {
     return new ResponsePaginate(devicesWithLocationName, pageMetaDto, 'Lấy những thiết bị thành công!');
   }
 
-  async findOne(id: string, workspaceId: string, query: DeviceDetailConsumptionDto) {
+  async getConsumption(id: string, workspaceId: string, query: DeviceDetailConsumptionDto) {
     const device = await this.deviceRepository.findOne({
       where: { id },
     });
@@ -245,5 +245,39 @@ export class DeviceService {
       pageOptionsDto: { skip: 0, take: devices.length },
     });
     return new ResponsePaginate(result, pageMetaDto, 'Lấy danh sách thiết bị thành công!');
+  }
+
+  async getDetail(id: string) {
+    const result = await this.deviceRepository.findOne({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        name: true,
+        deviceType: true,
+        fieldCalculate: true,
+        status: true,
+        devEUI: true,
+        voltageUnit: true,
+        voltageValue: true,
+        locationDevices: {
+          id: true,
+          currentIndex: true,
+          initialIndex: true,
+          periodStartIndex: true,
+          location: {
+            name: true,
+          },
+        },
+      },
+      relations: {
+        locationDevices: {
+          location: true,
+        },
+      },
+    });
+
+    return new ResponseItem(result, 'Lấy thông tin thiết bị thành công!');
   }
 }
