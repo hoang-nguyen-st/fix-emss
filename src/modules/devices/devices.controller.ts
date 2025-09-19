@@ -10,6 +10,7 @@ import { DeviceEntity } from './entities/device.entity';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAccessTokenGuard } from '@app/modules/auth/guards/jwt-access-token.guard';
 import { DetailTelemetryDeviceInterface } from './interface/detail-telemetry-device.interface';
+import { DeviceDetailConsumptionDto } from './dto/device-detail-consumption.dto';
 
 @ApiTags('Devices')
 @ApiBearerAuth()
@@ -54,9 +55,18 @@ export class DeviceController {
     return this.deviceService.getDevicesInfoByIds(workspaceId, ids);
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseItem<DeviceEntity>> {
-    return this.deviceService.findOne(id);
+  @Get(':id/consumption/workspace/:workspaceId')
+  getConsumption(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('workspaceId') workspaceId: string,
+    @Query() query: DeviceDetailConsumptionDto
+  ) {
+    return this.deviceService.getConsumption(id, workspaceId, query);
+  }
+
+  @Get('detail/:id')
+  getDetail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.deviceService.getDetail(id);
   }
 
   @Patch(':id')
