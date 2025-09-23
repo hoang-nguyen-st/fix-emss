@@ -24,7 +24,6 @@ import {
   LocationTypeVoltageLevelSeeder,
   PriceTypeLocationTypeSeeder,
   PricingElectricRuleSeeder,
-  LocationSeeder,
 } from './database/seeds';
 
 seeder({
@@ -57,5 +56,4 @@ seeder({
   LocationTypeVoltageLevelSeeder,
   PriceTypeLocationTypeSeeder,
   PricingElectricRuleSeeder,
-  LocationSeeder,
 ]);
