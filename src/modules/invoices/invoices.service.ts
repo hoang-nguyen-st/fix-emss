@@ -33,7 +33,7 @@ export class InvoicesService {
     });
 
     if (!ld) {
-      throw new NotFoundException();
+      throw new NotFoundException('Thiết bị không tồn tại');
     }
 
     const initIndex = ld.initialIndex;
@@ -69,19 +69,17 @@ export class InvoicesService {
     });
 
     if (!priceTiers || priceTiers.length === 0) {
-      throw new NotFoundException(`No tariff tiers found for workspaceId=${workspaceId}`);
+      throw new NotFoundException(`Không tìm thấy bảng giá cho workspaceId=${workspaceId}`);
     }
 
-    // --- Tính số ngày sử dụng thực tế ---
     const daysInPeriod =
       start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))) : 30;
 
     const Dref = 30;
 
-    // --- chuẩn hóa số & scale lại kwh ---
     const kwhNumbers = priceTiers.map((t) => {
       const raw = Number(t.kwh ?? 0);
-      if (raw === 0) return 0; // unlimited giữ nguyên
+      if (raw === 0) return 0;
       return Math.round((raw * daysInPeriod) / Dref);
     });
     const unitPrices = priceTiers.map((t) => Number(t.unitPrice ?? 0));
@@ -172,7 +170,7 @@ export class InvoicesService {
     const totalRounded = Math.round(total);
     const totalWithVAT = Math.round(total * 1.08);
 
-    console.log('🚀 computeEVNAmount =>', { total: totalRounded, totalWithVAT, details, daysInPeriod });
+    console.log('🚀 tinh toan tien dien =>', { total: totalRounded, totalWithVAT, details, daysInPeriod });
 
     return { total: totalRounded, totalWithVAT, details };
   }
