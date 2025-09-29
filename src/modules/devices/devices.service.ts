@@ -90,6 +90,7 @@ export class DeviceService {
         fieldCalculate: true,
         status: true,
         devEUI: true,
+        sensorId: true,
         locationDevices: {
           id: true,
           location: {
