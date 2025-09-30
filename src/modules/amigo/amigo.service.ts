@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { DataCrawlerService } from '@app/modules/data-crawler/data-crawler.service';
@@ -6,7 +6,11 @@ import { GetSingleAnalyticChartDto } from './dto/get-single-analytic-chart';
 
 @Injectable()
 export class AmigoService {
-  constructor(private readonly httpService: HttpService, private readonly dataCrawlerService: DataCrawlerService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    @Inject(forwardRef(() => DataCrawlerService))
+    private readonly dataCrawlerService: DataCrawlerService
+  ) {}
 
   async getSingleAnalyticalChart(payload: GetSingleAnalyticChartDto): Promise<any> {
     const accessToken = await this.dataCrawlerService.getCurrentAccessToken();
