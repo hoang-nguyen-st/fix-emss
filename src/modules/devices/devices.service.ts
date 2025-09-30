@@ -227,7 +227,7 @@ export class DeviceService {
             sensorname: sensorName,
           },
           headers: {
-            Authorization: `Bearer ${this.dataCrawlerService.getAccessTokenForAnotherService()}`,
+            Authorization: `Bearer ${this.dataCrawlerService.getCurrentAccessToken()}`,
             'Content-Type': 'application/json',
           },
         })
