@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
-import { AbstractEntity } from '@app/common/entities';
+import { AbstractEntity, InvoiceItemEntity } from '@app/common/entities';
 import { LocationTypeVoltageLevelEntity } from '@app/modules/location-type-voltage-levels/entities/location-type-voltage-level.entity';
 import { PriceTypeEntity } from '@app/modules/price-types/entities/price-type.entity';
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
@@ -41,6 +41,6 @@ export class PricingElectricRuleEntity extends AbstractEntity {
   @JoinColumn({ name: 'workspace_id' })
   workspace: WorkspaceEntity;
 
-  @OneToMany(() => InvoiceEntity, (invoice) => invoice.pricingElectricRule)
+  @OneToMany(() => InvoiceItemEntity, (invoiceItem) => invoiceItem.pricingRule)
   invoices: InvoiceEntity[];
 }

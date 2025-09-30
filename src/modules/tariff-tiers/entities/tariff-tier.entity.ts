@@ -4,6 +4,7 @@ import { LocationTypeEntity } from '@app/modules/location-types/entities/locatio
 import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.entity';
 import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
 import { Expose } from 'class-transformer';
+import { InvoiceItemEntity } from '@Entity/index';
 
 @Entity('tariff_tiers')
 export class TariffTierEntity extends AbstractEntity {
@@ -43,6 +44,6 @@ export class TariffTierEntity extends AbstractEntity {
   @JoinColumn({ name: 'workspace_id' })
   workspace: WorkspaceEntity;
 
-  @OneToMany(() => InvoiceEntity, (invoice) => invoice.tariffTier)
+  @OneToMany(() => InvoiceItemEntity, (invoiceItem) => invoiceItem.tariffTier)
   invoices: InvoiceEntity[];
 }

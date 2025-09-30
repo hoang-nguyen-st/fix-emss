@@ -15,7 +15,7 @@ import { LocationTypeVoltageLevelEntity } from '@app/modules/location-type-volta
 import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
 import { TariffTierEntity } from '@app/modules/tariff-tiers/entities/tariff-tier.entity';
 import { InvoiceEntity } from '@app/modules/invoices/entities/invoice.entity';
-import { InvoiceDetailEntity } from '@app/modules/invoices/entities/invoice-detail.entity';
+import { InvoiceItemEntity } from '@app/modules/invoices/entities/invoice-item.entity';
 import { PriceTypeLocationTypeEntity } from '@app/modules/price-types/entities/price-type-location-type.entity';
 import { LocationDeviceEntity } from '@app/modules/location-devices/entities/location-device.entity';
 
@@ -46,7 +46,7 @@ import { LocationDeviceEntity } from '@app/modules/location-devices/entities/loc
           PricingElectricRuleEntity,
           TariffTierEntity,
           InvoiceEntity,
-          InvoiceDetailEntity,
+          InvoiceItemEntity,
           PriceTypeLocationTypeEntity,
           LocationDeviceEntity,
         ],

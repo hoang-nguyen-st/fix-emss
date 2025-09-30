@@ -12,7 +12,7 @@ import { LocationTypeVoltageLevelEntity } from '@app/modules/location-type-volta
 import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
-import { InvoiceEntity, InvoiceDetailEntity } from '@app/modules/invoices/entities';
+import { InvoiceEntity, InvoiceItemEntity } from '@app/modules/invoices/entities';
 import { DatabaseModule } from './config/database.module';
 import {
   UserSeeder,
@@ -43,7 +43,7 @@ seeder({
       LocationEntity,
       DeviceEntity,
       InvoiceEntity,
-      InvoiceDetailEntity,
+      InvoiceItemEntity,
     ]),
   ],
 }).run([
