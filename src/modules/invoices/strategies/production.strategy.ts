@@ -8,9 +8,7 @@ export class ProductionStrategy extends InvoiceCalculationBaseStrategy {
   async calculate(
     devices: LocationDeviceEntity[],
     workspaceId: string | undefined,
-    locationTypeId: string,
-    _start?: Date,
-    _end?: Date
+    locationTypeId: string
   ): Promise<{ totalPrice: number; totalPriceWithVAT: number; details: BusinessResult[] }> {
     if (!workspaceId) {
       throw new BadRequestException('Không xác định được workspace để tính giá');
