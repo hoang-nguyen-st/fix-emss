@@ -13,4 +13,4 @@ export * from '@app/modules/location-type-voltage-levels/entities/location-type-
 export * from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
 export * from '@app/modules/tariff-tiers/entities/tariff-tier.entity';
 export * from '@app/modules/invoices/entities/invoice.entity';
-export * from '@app/modules/invoices/entities/invoice-detail.entity';
+export * from '@app/modules/invoices/entities/invoice-item.entity';

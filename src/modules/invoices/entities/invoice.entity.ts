@@ -1,14 +1,21 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToOne } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { AbstractEntity } from '@Entity/abstract.entity';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
-import { PricingElectricRuleEntity } from '@app/modules/pricing-electric-rules/entities/pricing-electric-rule.entity';
-import { TariffTierEntity } from '@app/modules/tariff-tiers/entities/tariff-tier.entity';
-import { InvoiceDetailEntity } from '@app/modules/invoices/entities/invoice-detail.entity';
-import { InvoiceStatusEnum } from '@Constant/enums';
+import { InvoiceItemEntity } from '@app/modules/invoices/entities/invoice-item.entity';
 import { Expose } from 'class-transformer';
+import { InvoiceStatusEnum, InvoiceTypeEnum } from '@Constant/enums';
 
 @Entity('invoices')
 export class InvoiceEntity extends AbstractEntity {
+  @Expose()
+  @Column({
+    type: 'enum',
+    enum: InvoiceTypeEnum,
+    name: 'invoice_type',
+    comment: 'Loại hóa đơn: HOUSEHOLD (bậc thang), BUSINESS/PRODUCTION (3 biểu giá)',
+  })
+  invoiceType: InvoiceTypeEnum;
+
   @Expose()
   @Column({ type: 'date', name: 'effective_from' })
   effectiveFrom: Date;
@@ -18,20 +25,20 @@ export class InvoiceEntity extends AbstractEntity {
   effectiveTo: Date;
 
   @Expose()
-  @Column({ type: 'numeric', name: 'from_kwh' })
-  fromKwh: number;
+  @Column({
+    type: 'numeric',
+    name: 'total_consumption',
+    comment: 'Tổng điện năng tiêu thụ (kWh)',
+  })
+  totalConsumption: number;
 
   @Expose()
-  @Column({ type: 'numeric', name: 'to_kwh' })
-  toKwh: number;
-
-  @Expose()
-  @Column({ type: 'date', name: 'due_date' })
-  dueDate: Date;
-
-  @Expose()
-  @Column({ type: 'numeric', name: 'total_amount' })
-  totalAmount: number;
+  @Column({
+    type: 'numeric',
+    name: 'subtotal',
+    comment: 'Tổng tiền chưa VAT',
+  })
+  subtotal: number;
 
   @Expose()
   @Column({ type: 'decimal', precision: 5, scale: 2, name: 'vat_rate' })
@@ -42,6 +49,18 @@ export class InvoiceEntity extends AbstractEntity {
   vatAmount: number;
 
   @Expose()
+  @Column({
+    type: 'numeric',
+    name: 'total_amount',
+    comment: 'Tổng tiền sau VAT',
+  })
+  totalAmount: number;
+
+  @Expose()
+  @Column({ type: 'date', name: 'due_date' })
+  dueDate: Date;
+
+  @Expose()
   @Column({ type: 'enum', enum: InvoiceStatusEnum, name: 'status' })
   status: InvoiceStatusEnum;
 
@@ -50,29 +69,16 @@ export class InvoiceEntity extends AbstractEntity {
   notes: string;
 
   @Expose()
-  @Column({ type: 'uuid', nullable: true, name: 'pricing_electric_rule_id' })
-  pricingElectricRuleId: string;
-
-  @Expose()
-  @Column({ type: 'uuid', nullable: true, name: 'tariff_tier_id' })
-  tariffTierId: string;
-
-  @Expose()
   @Column({ type: 'uuid', name: 'location_id' })
   locationId: string;
-
-  @ManyToOne(() => PricingElectricRuleEntity)
-  @JoinColumn({ name: 'pricing_electric_rule_id' })
-  pricingElectricRule: PricingElectricRuleEntity;
-
-  @ManyToOne(() => TariffTierEntity)
-  @JoinColumn({ name: 'tariff_tier_id' })
-  tariffTier: TariffTierEntity;
 
   @ManyToOne(() => LocationEntity)
   @JoinColumn({ name: 'location_id' })
   location: LocationEntity;
 
-  @OneToOne(() => InvoiceDetailEntity, (invoiceDetail) => invoiceDetail.invoice)
-  invoiceDetail: InvoiceDetailEntity;
+  @OneToMany(() => InvoiceItemEntity, (item) => item.invoice, {
+    cascade: true,
+    eager: true,
+  })
+  items: InvoiceItemEntity[];
 }

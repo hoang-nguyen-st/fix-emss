@@ -27,12 +27,6 @@ export enum UserRoleEnum {
   SUPER_ADMIN = 'SUPER_ADMIN',
 }
 
-export enum InvoiceStatusEnum {
-  PENDING = 'pending',
-  PAID = 'paid',
-  CANCELLED = 'cancelled',
-}
-
 export enum TimeSlotNameEnum {
   PEAK = 'Peak',
   OFF_PEAK = 'Off peak',
@@ -125,4 +119,31 @@ export enum TimeUsageTypeEnum {
 export enum VoltageUnitEnum {
   VOLT = 'V',
   KILOVOLT = 'kV',
+}
+
+export enum InvoiceTypeEnum {
+  HOUSEHOLD = 'HOUSEHOLD',
+  BUSINESS = 'BUSINESS',
+  PRODUCTION = 'PRODUCTION',
+}
+
+export enum InvoiceStatusEnum {
+  DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  OVERDUE = 'OVERDUE',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum InvoiceItemTypeEnum {
+  TIER = 'TIER',
+  TIME_SLOT = 'TIME_SLOT',
+  DEVICE = 'DEVICE',
+}
+
+export enum TimeUsageEnum {
+  NORMAL = 'NORMAL',
+  PEAK = 'PEAK',
+  OFF_PEAK = 'OFF_PEAK',
+  MID_PEAK = 'MID_PEAK',
 }
