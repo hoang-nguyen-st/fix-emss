@@ -13,6 +13,10 @@ import { WorkspaceEntity } from '@app/modules/workspaces/entities/workspace.enti
 import { LocationDeviceEntity } from '@app/modules/location-devices/entities/location-device.entity';
 import { AmigoApiResponseDto, AmigoSensorDto, AmigoProjectApiResponseDto, AmigoProjectDto } from './dto';
 import { plainToInstance } from 'class-transformer';
+import { TimeSlotEntity } from '@app/modules/price-types/entities/time-slot.entity';
+import { PriceTypeEnum, LocationTypeEnum, TimeSlotDayTypeEnum, TimeSlotNameEnum } from '@app/common/constants/enums';
+import { AmigoService } from '@app/modules/amigo/amigo.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class DataCrawlerService {
@@ -31,7 +35,11 @@ export class DataCrawlerService {
     @InjectRepository(WorkspaceEntity)
     private readonly workspaceRepository: Repository<WorkspaceEntity>,
     @InjectRepository(LocationDeviceEntity)
-    private readonly locationDeviceRepository: Repository<LocationDeviceEntity>
+    private readonly locationDeviceRepository: Repository<LocationDeviceEntity>,
+    @InjectRepository(TimeSlotEntity)
+    private readonly timeSlotRepository: Repository<TimeSlotEntity>,
+    @Inject(forwardRef(() => AmigoService))
+    private readonly amigoService: AmigoService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.authConfig = {
@@ -144,12 +152,75 @@ export class DataCrawlerService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async scheduledLocationDevicesSync(): Promise<void> {
     try {
-      this.logger.log('Starting scheduled location devices sync...');
-      await this.syncLocationDevicesData();
-      this.logger.log('Scheduled location devices sync completed successfully');
+      const locationDevices = await this.locationDeviceRepository.find({
+        relations: ['device', 'location', 'location.priceType', 'location.locationType'],
+      });
+
+      if (!locationDevices.length) {
+        this.logger.log('No location-device relationships to sync.');
+        return;
+      }
+
+      for (const ld of locationDevices) {
+        try {
+          if (!ld.device || !ld.device.sensorId || !ld.device.workspaceId) continue;
+
+          const fieldKey = ld.device.fieldCalculate;
+          const latest = await this.getLatestStorageFromAmigo(ld.device.workspaceId, ld.device.sensorId, fieldKey);
+          if (!latest) continue;
+
+          const latestValue = Number(latest.value);
+          const latestTime = new Date(latest.timestamp);
+
+          const prevOverall = Number(ld.currentIndex ?? 0);
+          const periodStart = Number(ld.periodStartIndex ?? 0);
+
+          if (!isNaN(prevOverall) && latestValue === prevOverall) {
+            continue;
+          }
+
+          ld.currentIndex = latestValue;
+
+          const isResidential = ld.location?.locationType?.locationTypeEnum === LocationTypeEnum.RESIDENTIAL;
+          const priceTypeEnum = ld.location?.priceType?.priceTypeEnum;
+
+          if (isResidential || priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1) {
+            await this.locationDeviceRepository.save(ld);
+            continue;
+          }
+
+          if (priceTypeEnum === PriceTypeEnum.PRICE_TYPE_3) {
+            const dayType = this.getDayType(latestTime);
+            const slotName = await this.getTimeSlotNameForTimestamp(dayType, latestTime);
+
+            const delta = latestValue - (isNaN(prevOverall) ? 0 : prevOverall);
+            if (!(delta >= 0)) {
+              await this.locationDeviceRepository.save(ld);
+              continue;
+            }
+
+            const result = delta + (isNaN(periodStart) ? 0 : periodStart);
+
+            if (slotName === TimeSlotNameEnum.PEAK) {
+              ld.peakCurrentIndex = Number(ld.peakCurrentIndex ?? 0) + result;
+            } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+              ld.midCurrentIndex = Number(ld.midCurrentIndex ?? 0) + result;
+            } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+              ld.offPeakCurrentIndex = Number(ld.offPeakCurrentIndex ?? 0) + result;
+            }
+
+            await this.locationDeviceRepository.save(ld);
+            continue;
+          }
+
+          await this.locationDeviceRepository.save(ld);
+        } catch (innerErr) {
+          this.logger.error(`Failed to sync location-device ${ld.id}: ${innerErr?.message}`);
+        }
+      }
     } catch (error) {
       this.logger.error('Scheduled location devices sync failed:', error.message);
     }
@@ -444,103 +515,66 @@ export class DataCrawlerService {
     }
   }
 
-  public getAccessTokenForAnotherService(): string {
-    return this.accessToken;
+  private getDayType(date: Date): TimeSlotDayTypeEnum {
+    const day = date.getDay();
+    return day === 0 || day === 6 ? TimeSlotDayTypeEnum.WEEKEND : TimeSlotDayTypeEnum.WEEKDAY;
   }
 
-  public async syncLocationDevicesData(): Promise<{ success: boolean; message: string; syncedCount: number }> {
+  private async getTimeSlotNameForTimestamp(
+    dayType: TimeSlotDayTypeEnum,
+    date: Date
+  ): Promise<TimeSlotNameEnum | null> {
+    const timeString = date.toTimeString().slice(0, 8);
+    const slots = await this.timeSlotRepository.find({ where: { dayType } });
+
+    const matched = slots.find((slot) => {
+      const start = slot.startTime;
+      const end = slot.endTime;
+
+      if (start < end) {
+        return timeString >= start && timeString < end;
+      }
+      return timeString >= start || timeString < end;
+    });
+
+    return matched?.name ?? null;
+  }
+
+  private async getLatestStorageFromAmigo(
+    projectId: string,
+    sensorId: string,
+    fieldKey?: string
+  ): Promise<{ timestamp: string; value: number } | null> {
     try {
-      this.logger.log('Starting sync for location devices...');
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
 
-      const locationDevices = await this.locationDeviceRepository.find({
-        relations: ['device'],
-      });
-
-      this.logger.log(`Found ${locationDevices.length} location devices to sync`);
-
-      if (locationDevices.length === 0) {
-        this.logger.log('No location devices found to sync');
-        return {
-          success: true,
-          message: 'No location devices found to sync',
-          syncedCount: 0,
-        };
-      }
-
-      let syncedCount = 0;
-      const accessToken = await this.getCurrentAccessToken();
-
-      for (const locationDevice of locationDevices) {
-        try {
-          if (!locationDevice.device || !locationDevice.device.sensorId) {
-            this.logger.warn(`Skipping location device ${locationDevice.id} - no device or sensorId`);
-            continue;
-          }
-
-          const currentTime = new Date();
-          const startTime = new Date(currentTime.getTime() - 24 * 60 * 60 * 1000);
-          const endTime = currentTime;
-
-          const payload = {
-            projectId: locationDevice.device.workspaceId,
-            sensorId: locationDevice.device.sensorId,
-            interval: '1d',
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            systemType: 1,
-          };
-
-          const url = `${this.apiEndpoint}/gateway/iot/api/IoTSensor/Analytics/GetSingleAnalyticalChart`;
-          const headers = {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          };
-
-          const response = await firstValueFrom(this.httpService.post(url, payload, { headers }));
-
-          if (response.data && response.data.isSuccess && response.data.data) {
-            const chartData = response.data.data;
-
-            let latestIndex = locationDevice.currentIndex;
-
-            if (chartData && chartData.length > 0) {
-              const lastDataPoint = chartData[chartData.length - 1];
-              if (lastDataPoint && typeof lastDataPoint === 'number') {
-                latestIndex = lastDataPoint;
-              } else if (lastDataPoint && lastDataPoint.value !== undefined) {
-                latestIndex = lastDataPoint.value;
-              }
-            }
-
-            if (latestIndex !== locationDevice.currentIndex) {
-              locationDevice.currentIndex = latestIndex;
-              await this.locationDeviceRepository.save(locationDevice);
-
-              this.logger.log(
-                `Updated currentIndex for location device ${locationDevice.id}: ${locationDevice.currentIndex}`
-              );
-              syncedCount++;
-            }
-          }
-        } catch (error) {
-          this.logger.error(`Failed to sync data for location device ${locationDevice.id}:`, error.message);
-        }
-      }
-
-      this.logger.log(`Location devices sync completed. Synced: ${syncedCount}/${locationDevices.length}`);
-
-      return {
-        success: true,
-        message: `Successfully synced ${syncedCount} location devices`,
-        syncedCount,
+      const payload = {
+        projectId,
+        sensorId,
+        interval: '1y',
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        systemType: 1,
       };
+
+      const res = await this.amigoService.getSingleAnalyticalChart(payload as any);
+      const data = res?.data;
+
+      const series: any[] = Array.isArray(data?.[fieldKey]) ? data[fieldKey] : [];
+      if (!series.length) return null;
+
+      const last = series[series.length - 1];
+      if (Array.isArray(last) && last.length >= 2) {
+        const ts = new Date(last[0]).toISOString();
+        const val = Number(last[1]);
+        if (!isNaN(val)) return { timestamp: ts, value: val };
+      }
+
+      return null;
     } catch (error) {
-      this.logger.error('Failed to sync location devices data:', error.message);
-      return {
-        success: false,
-        message: `Failed to sync location devices data: ${error.message}`,
-        syncedCount: 0,
-      };
+      this.logger.error('Failed to fetch latest storage from Amigo:', error.message);
+      return null;
     }
   }
 }
