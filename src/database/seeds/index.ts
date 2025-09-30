@@ -7,4 +7,3 @@ export * from './price-type.seeder';
 export * from './location-type-voltage-level.seeder';
 export * from './price-type-location-type.seeder';
 export * from './pricing-electric-rule.seeder';
-export * from './location.seeder';
