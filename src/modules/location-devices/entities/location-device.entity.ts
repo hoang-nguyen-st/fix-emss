@@ -19,6 +19,26 @@ export class LocationDeviceEntity extends AbstractEntity {
   periodStartIndex: number;
 
   @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'weekday_peak' })
+  weekdayPeak: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'weekday_mid_peak' })
+  weekdayMidPeak: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'weekday_off_peak' })
+  weekdayOffPeak: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'weekend_mid_peak' })
+  weekendMidPeak: number;
+
+  @Expose()
+  @Column({ type: 'numeric', nullable: true, name: 'weekend_off_peak' })
+  weekendOffPeak: number;
+
+  @Expose()
   @Column({ type: 'uuid', name: 'device_id' })
   deviceId: string;
 
