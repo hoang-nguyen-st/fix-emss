@@ -25,6 +25,11 @@ export class LocationDeviceService {
           initialIndex: device.initialIndex,
           currentIndex: device.initialIndex,
           periodStartIndex: device.initialIndex,
+          weekdayMidPeak: device.initialIndex,
+          weekdayOffPeak: device.initialIndex,
+          weekdayPeak: device.initialIndex,
+          weekendMidPeak: device.initialIndex,
+          weekendOffPeak: device.initialIndex,
         });
       });
 
