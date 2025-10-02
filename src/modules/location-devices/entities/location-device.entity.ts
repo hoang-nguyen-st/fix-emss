@@ -19,28 +19,24 @@ export class LocationDeviceEntity extends AbstractEntity {
   periodStartIndex: number;
 
   @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'mid_start_index' })
-  midStartIndex: number;
+  @Column({ type: 'numeric', nullable: true, name: 'weekday_peak' })
+  weekdayPeak: number;
 
   @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'mid_current_index' })
-  midCurrentIndex: number;
+  @Column({ type: 'numeric', nullable: true, name: 'weekday_mid_peak' })
+  weekdayMidPeak: number;
 
   @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'peak_start_index' })
-  peakStartIndex: number;
+  @Column({ type: 'numeric', nullable: true, name: 'weekday_off_peak' })
+  weekdayOffPeak: number;
 
   @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'peak_current_index' })
-  peakCurrentIndex: number;
+  @Column({ type: 'numeric', nullable: true, name: 'weekend_mid_peak' })
+  weekendMidPeak: number;
 
   @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'off_peak_start_index' })
-  offPeakStartIndex: number;
-
-  @Expose()
-  @Column({ type: 'numeric', nullable: true, name: 'off_peak_current_index' })
-  offPeakCurrentIndex: number;
+  @Column({ type: 'numeric', nullable: true, name: 'weekend_off_peak' })
+  weekendOffPeak: number;
 
   @Expose()
   @Column({ type: 'uuid', name: 'device_id' })
