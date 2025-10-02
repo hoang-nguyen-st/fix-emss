@@ -218,11 +218,26 @@ export class UsersService {
       where: {
         id,
       },
+      select: {
+        id: true,
+        createdAt: true,
+        email: true,
+        phone: true,
+        status: true,
+        name: true,
+        dateOfBirth: true,
+        address: true,
+        avatar: true,
+      },
     });
-    if (!user) throw new BadRequestException('Nhân viên không tồn tại');
+
+    if (!user) throw new BadRequestException('Người dùng không tồn tại');
 
     return new ResponseItem(
-      { ...user, avatar: user.avatar ? baseImageUrl + convertPath(user.avatar) : null },
+      plainToClass(UserDto, {
+        ...user,
+        avatar: user.avatar ? baseImageUrl + convertPath(user.avatar) : null,
+      }),
       'Thành công'
     );
   }
