@@ -152,11 +152,17 @@ export class DataCrawlerService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron('0 */15 * * * *')
   async scheduledLocationDevicesSync(): Promise<void> {
     try {
       const locationDevices = await this.locationDeviceRepository.find({
-        relations: ['device', 'location', 'location.priceType', 'location.locationType'],
+        relations: {
+          device: true,
+          location: {
+            priceType: true,
+            locationType: true,
+          },
+        },
       });
 
       if (!locationDevices.length) {
@@ -176,7 +182,6 @@ export class DataCrawlerService {
           const latestTime = new Date(latest.timestamp);
 
           const prevOverall = Number(ld.currentIndex ?? 0);
-          const periodStart = Number(ld.periodStartIndex ?? 0);
 
           if (!isNaN(prevOverall) && latestValue === prevOverall) {
             continue;
@@ -202,14 +207,39 @@ export class DataCrawlerService {
               continue;
             }
 
-            const result = delta + (isNaN(periodStart) ? 0 : periodStart);
+            let periodStartForSlot = 0;
+            if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
+              if (slotName === TimeSlotNameEnum.PEAK) {
+                periodStartForSlot = Number(ld.weekdayPeak ?? 0);
+              } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+                periodStartForSlot = Number(ld.weekdayMidPeak ?? 0);
+              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+                periodStartForSlot = Number(ld.weekdayOffPeak ?? 0);
+              }
+            } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
+              if (slotName === TimeSlotNameEnum.MID_PEAK) {
+                periodStartForSlot = Number(ld.weekendMidPeak ?? 0);
+              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+                periodStartForSlot = Number(ld.weekendOffPeak ?? 0);
+              }
+            }
 
-            if (slotName === TimeSlotNameEnum.PEAK) {
-              ld.peakCurrentIndex = Number(ld.peakCurrentIndex ?? 0) + result;
-            } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
-              ld.midCurrentIndex = Number(ld.midCurrentIndex ?? 0) + result;
-            } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
-              ld.offPeakCurrentIndex = Number(ld.offPeakCurrentIndex ?? 0) + result;
+            const result = delta + periodStartForSlot;
+
+            if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
+              if (slotName === TimeSlotNameEnum.PEAK) {
+                ld.weekdayPeak = result;
+              } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+                ld.weekdayMidPeak = result;
+              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+                ld.weekdayOffPeak = result;
+              }
+            } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
+              if (slotName === TimeSlotNameEnum.MID_PEAK) {
+                ld.weekendMidPeak = result;
+              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+                ld.weekendOffPeak = result;
+              }
             }
 
             await this.locationDeviceRepository.save(ld);
