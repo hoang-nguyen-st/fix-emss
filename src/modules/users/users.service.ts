@@ -205,7 +205,6 @@ export class UsersService {
       })
       .getCount();
   }
-
   private buildUserStatisticsData(
     userStatsByStatus: UserStatusStatisticsDto[],
     unassignedUsersCount: number
@@ -214,7 +213,6 @@ export class UsersService {
       status: stat.status,
       count: Number(stat.count),
     }));
-
     if (unassignedUsersCount > 0) {
       data.push({ status: UserStatusEnum.UNASSIGNED, count: unassignedUsersCount });
     }
@@ -227,13 +225,30 @@ export class UsersService {
       where: {
         id,
       },
-    });
-    if (!user) throw new BadRequestException('Nhân viên không tồn tại');
 
-    return new ResponseItem(
-      { ...user, avatar: user.avatar ? baseImageUrl + convertPath(user.avatar) : null },
-      'Thành công'
-    );
+      select: {
+        id: true,
+        createdAt: true,
+        email: true,
+        phone: true,
+        status: true,
+        name: true,
+        dateOfBirth: true,
+        address: true,
+        avatar: true,
+      },
+    });
+
+    if (!user) throw new BadRequestException('Người dùng không tồn tại');
+
+    const userData = {
+      ...user,
+      avatar: user.avatar ? baseImageUrl + convertPath(user.avatar) : null,
+    };
+
+    const resultDto = plainToClass(UserDto, userData);
+
+    return new ResponseItem(resultDto, 'Thành công');
   }
 
   async getProfile(id: string): Promise<ResponseItem<ProfileDto>> {
