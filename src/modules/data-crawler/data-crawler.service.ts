@@ -68,7 +68,6 @@ export class DataCrawlerService {
   private async initializeAutoSync(): Promise<void> {
     try {
       this.logger.log('Starting auto-sync initialization...');
-
       setTimeout(async () => {
         try {
           this.logger.log('Auto-sync starting...');
@@ -80,46 +79,6 @@ export class DataCrawlerService {
       }, 10000);
     } catch (error) {
       this.logger.error('Failed to initialize auto-sync:', error.message);
-    }
-  }
-
-  public async getSyncStatus(): Promise<{
-    success: boolean;
-    message: string;
-    workspaceCount: number;
-    deviceCount: number;
-    locationDeviceCount: number;
-    lastSyncTime?: Date;
-    nextSyncTime?: Date;
-  }> {
-    try {
-      const workspaces = await this.workspaceRepository.find();
-      const devices = await this.deviceRepository.find();
-      const locationDevices = await this.locationDeviceRepository.find({
-        relations: ['device'],
-      });
-
-      const now = new Date();
-      const nextSync = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-
-      return {
-        success: true,
-        message: 'Sync status retrieved successfully',
-        workspaceCount: workspaces.length,
-        deviceCount: devices.length,
-        locationDeviceCount: locationDevices.length,
-        lastSyncTime: now,
-        nextSyncTime: nextSync,
-      };
-    } catch (error) {
-      this.logger.error('Failed to get sync status:', error.message);
-      return {
-        success: false,
-        message: `Failed to get sync status: ${error.message}`,
-        workspaceCount: 0,
-        deviceCount: 0,
-        locationDeviceCount: 0,
-      };
     }
   }
 
@@ -136,8 +95,6 @@ export class DataCrawlerService {
       } finally {
         this.isRefreshing = false;
       }
-    } else {
-      this.logger.log('Skipping scheduled refresh - token exists or refresh in progress');
     }
   }
 
@@ -155,6 +112,8 @@ export class DataCrawlerService {
   @Cron('0 */15 * * * *')
   async scheduledLocationDevicesSync(): Promise<void> {
     try {
+      this.logger.log('Starting location devices sync...');
+
       const locationDevices = await this.locationDeviceRepository.find({
         relations: {
           device: true,
@@ -172,377 +131,173 @@ export class DataCrawlerService {
 
       for (const ld of locationDevices) {
         try {
-          if (!ld.device || !ld.device.sensorId || !ld.device.workspaceId) continue;
-
-          const fieldKey = ld.device.fieldCalculate;
-          const latest = await this.getLatestStorageFromAmigo(ld.device.workspaceId, ld.device.sensorId, fieldKey);
-          if (!latest) continue;
-
-          const latestValue = Number(latest.value);
-          const latestTime = new Date(latest.timestamp);
-
-          const prevOverall = Number(ld.currentIndex ?? 0);
-
-          if (!isNaN(prevOverall) && latestValue === prevOverall) {
-            continue;
-          }
-
-          ld.currentIndex = latestValue;
-
-          const isResidential = ld.location?.locationType?.locationTypeEnum === LocationTypeEnum.RESIDENTIAL;
-          const priceTypeEnum = ld.location?.priceType?.priceTypeEnum;
-
-          if (isResidential || priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1) {
-            await this.locationDeviceRepository.save(ld);
-            continue;
-          }
-
-          if (priceTypeEnum === PriceTypeEnum.PRICE_TYPE_3) {
-            const dayType = this.getDayType(latestTime);
-            const slotName = await this.getTimeSlotNameForTimestamp(dayType, latestTime);
-
-            const delta = latestValue - (isNaN(prevOverall) ? 0 : prevOverall);
-            if (!(delta >= 0)) {
-              await this.locationDeviceRepository.save(ld);
-              continue;
-            }
-
-            let periodStartForSlot = 0;
-            if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
-              if (slotName === TimeSlotNameEnum.PEAK) {
-                periodStartForSlot = Number(ld.weekdayPeak ?? 0);
-              } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
-                periodStartForSlot = Number(ld.weekdayMidPeak ?? 0);
-              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
-                periodStartForSlot = Number(ld.weekdayOffPeak ?? 0);
-              }
-            } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
-              if (slotName === TimeSlotNameEnum.MID_PEAK) {
-                periodStartForSlot = Number(ld.weekendMidPeak ?? 0);
-              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
-                periodStartForSlot = Number(ld.weekendOffPeak ?? 0);
-              }
-            }
-
-            const result = delta + periodStartForSlot;
-
-            if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
-              if (slotName === TimeSlotNameEnum.PEAK) {
-                ld.weekdayPeak = result;
-              } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
-                ld.weekdayMidPeak = result;
-              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
-                ld.weekdayOffPeak = result;
-              }
-            } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
-              if (slotName === TimeSlotNameEnum.MID_PEAK) {
-                ld.weekendMidPeak = result;
-              } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
-                ld.weekendOffPeak = result;
-              }
-            }
-
-            await this.locationDeviceRepository.save(ld);
-            continue;
-          }
-
-          await this.locationDeviceRepository.save(ld);
+          await this.syncSingleLocationDevice(ld);
         } catch (innerErr) {
           this.logger.error(`Failed to sync location-device ${ld.id}: ${innerErr?.message}`);
         }
       }
+
+      this.logger.log(`Successfully synced ${locationDevices.length} location devices`);
     } catch (error) {
       this.logger.error('Scheduled location devices sync failed:', error.message);
     }
   }
 
-  public async getCurrentAccessToken(): Promise<string> {
-    if (!this.accessToken) {
-      this.logger.log('No access token available, fetching new one...');
-      this.accessToken = await this.getAccessToken();
-    }
-    return this.accessToken;
-  }
-
-  public async forceRefreshAccessToken(): Promise<string> {
+  @Cron('0 0 0 1 * *')
+  async generateMonthlyBillsAndReset(): Promise<void> {
     try {
-      this.logger.log('Force refreshing access token due to expiration...');
-      this.isRefreshing = true;
-      this.accessToken = await this.getAccessToken();
-      this.logger.log('Access token force refreshed successfully');
-      return this.accessToken;
-    } catch (error) {
-      this.logger.error('Failed to force refresh access token:', error.message);
-      throw error;
-    } finally {
-      this.isRefreshing = false;
-    }
-  }
+      this.logger.log('Starting monthly bill generation and reset...');
 
-  public async validateAndGetToken(): Promise<string> {
-    if (!this.accessToken) {
-      return this.getCurrentAccessToken();
-    }
-
-    try {
-      return this.accessToken;
-    } catch (error) {
-      if (error.response?.status === 401) {
-        this.logger.warn('Token expired, forcing refresh...');
-        return this.forceRefreshAccessToken();
-      }
-      throw error;
-    }
-  }
-
-  private async getVcToken() {
-    const captchaKey = generateRandomString(this.configService.get<string>('CAPTCHA_KEY'));
-    const url = `${this.apiEndpoint}/neurongateway/neuron/captcha?key=${captchaKey}`;
-    const response = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
-    const base64 = Buffer.from(response.data).toString('base64');
-    const imageDataUrl = `data:image/png;base64,${base64}`;
-    const captchaText = await this.geminiService.readCaptcha(imageDataUrl);
-    return { captchaText, captchaKey };
-  }
-
-  private async crawlAccessToken(code: string, captchaKey: string) {
-    const url = `${this.apiEndpoint}/neurongateway/neuron/oauth/token`;
-    const body = qs.stringify({
-      username: this.authConfig.username,
-      password: this.authConfig.password,
-      vc_code: code,
-      vc_token: captchaKey,
-      tenant_code: this.authConfig.tenantCode,
-      grant_type: this.authConfig.grantType,
-      client_id: this.authConfig.clientId,
-      client_secret: this.authConfig.clientSecret,
-      auth_type: this.authConfig.authType,
-    });
-    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    try {
-      const response = await firstValueFrom(this.httpService.post(url, body, { headers }));
-
-      return response?.data ?? [];
-    } catch (error) {
-      this.logger.error(`Failed to fetch data from ${url}:`, error.message);
-      throw error;
-    }
-  }
-
-  public async getAccessToken(): Promise<string> {
-    try {
-      const { captchaText, captchaKey } = await this.getVcToken();
-      const tokenResponse = await this.crawlAccessToken(captchaText, captchaKey);
-      return tokenResponse.data.access_token;
-    } catch (error) {
-      this.logger.error('Failed to get access token:', error.message);
-      throw error;
-    }
-  }
-
-  public async getSensorsAndSync(
-    projectId: string,
-    systemType: number
-  ): Promise<{ success: boolean; message: string; syncedCount: number }> {
-    try {
-      const accessToken = await this.getCurrentAccessToken();
-
-      const url = `https://amigo.veep.vn/gateway/iot/api/IoTSensor/GetSensorsByProjectUser`;
-      const params = { projectId, systemType };
-
-      const response = await firstValueFrom(
-        this.httpService.get(url, {
-          params,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+      const locationDevices = await this.locationDeviceRepository.find({
+        relations: {
+          device: true,
+          location: {
+            priceType: true,
+            locationType: true,
           },
-        })
-      );
+        },
+      });
 
-      const apiResponse = plainToInstance(AmigoApiResponseDto, response.data);
-
-      if (!apiResponse.isSuccess || apiResponse.code !== 0) {
-        throw new Error(`API call failed: ${apiResponse.message}`);
+      if (!locationDevices.length) {
+        this.logger.log('No location-device relationships to process.');
+        return;
       }
 
-      const syncedCount = await this.syncSensorsToDatabase(apiResponse.data, projectId);
+      let processedCount = 0;
 
-      return {
-        success: true,
-        message: `Successfully synced ${syncedCount} sensors`,
-        syncedCount,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get sensors and sync for project ${projectId}:`, error.message);
-      throw error;
-    }
-  }
-
-  private async syncSensorsToDatabase(sensors: AmigoSensorDto[], projectId: string): Promise<number> {
-    let syncedCount = 0;
-
-    for (const sensor of sensors) {
-      try {
-        const existingDevice = await this.deviceRepository.findOne({
-          where: { devEUI: sensor.devEUI, sensorId: sensor.sensorId },
-        });
-
-        if (existingDevice) {
-          existingDevice.name = sensor.name;
-          existingDevice.description = sensor.description;
-          existingDevice.status = true;
-          existingDevice.workspaceId = projectId;
-
-          await this.deviceRepository.save(existingDevice);
-        } else {
-          const newDevice = this.deviceRepository.create({
-            devEUI: sensor.devEUI,
-            sensorId: sensor.sensorId,
-            name: sensor.name,
-            description: sensor.description,
-            status: true,
-            workspaceId: projectId,
-            createdBy: 'amigo',
-            updatedBy: 'amigo',
-          } as DeviceEntity);
-
-          await this.deviceRepository.save(newDevice);
-        }
-
-        syncedCount++;
-      } catch (error) {
-        this.logger.error(`Failed to sync sensor ${sensor.sensorId}:`, error.message);
-      }
-    }
-
-    return syncedCount;
-  }
-
-  public async syncAllProjects(): Promise<{ success: boolean; message: string; syncedCount: number }> {
-    try {
-      this.logger.log('Fetching all projects from Amigo API...');
-
-      const accessToken = await this.getCurrentAccessToken();
-
-      const url = `https://amigo.veep.vn/gateway/project/api/Project/EnterprisePageList`;
-      const params = { pageSize: -1 };
-
-      const response = await firstValueFrom(
-        this.httpService.get(url, {
-          params,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      );
-      const apiResponse = plainToInstance(AmigoProjectApiResponseDto, response.data);
-
-      if (!apiResponse.isSuccess) {
-        throw new Error(`API call failed: ${apiResponse.message}`);
-      }
-
-      const syncedCount = await this.syncProjectsToDatabase(apiResponse.data.data);
-
-      this.logger.log(`Successfully synced ${syncedCount} projects`);
-
-      return {
-        success: true,
-        message: `Successfully synced ${syncedCount} projects`,
-        syncedCount,
-      };
-    } catch (error) {
-      this.logger.error('Failed to sync projects:', error.message);
-      throw error;
-    }
-  }
-
-  private async syncProjectsToDatabase(projects: AmigoProjectDto[]): Promise<number> {
-    let syncedCount = 0;
-
-    for (const project of projects) {
-      try {
-        const existingWorkspace = await this.workspaceRepository.findOne({
-          where: { id: project.id },
-        });
-
-        if (existingWorkspace) {
-          existingWorkspace.name = project.name;
-          existingWorkspace.updatedBy = 'amigo';
-
-          await this.workspaceRepository.save(existingWorkspace);
-        } else {
-          const newWorkspace = this.workspaceRepository.create({
-            id: project.id,
-            name: project.name,
-            createdBy: 'amigo',
-            updatedBy: 'amigo',
-            createdAt: project.creationTime,
-            updatedAt: project.creationTime,
-          } as WorkspaceEntity);
-
-          await this.workspaceRepository.save(newWorkspace);
-        }
-
-        syncedCount++;
-      } catch (error) {
-        this.logger.error(`Failed to sync project ${project.name}:`, error.message);
-      }
-    }
-
-    return syncedCount;
-  }
-
-  public async syncAllDevicesFromProjects(): Promise<{ success: boolean; message: string; totalSyncedCount: number }> {
-    try {
-      this.logger.log('Starting full sync: projects and devices...');
-
-      const projectResult = await this.syncAllProjects();
-      if (!projectResult.success) {
-        throw new Error('Failed to sync projects');
-      }
-
-      const accessToken = await this.getCurrentAccessToken();
-      const url = `https://amigo.veep.vn/gateway/project/api/Project/EnterprisePageList`;
-      const params = { pageSize: -1 };
-
-      const response = await firstValueFrom(
-        this.httpService.get(url, {
-          params,
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      );
-
-      const apiResponse = plainToInstance(AmigoProjectApiResponseDto, response.data);
-      if (!apiResponse.isSuccess) {
-        throw new Error(`Failed to fetch projects for device sync: ${apiResponse.message}`);
-      }
-
-      let totalDeviceCount = 0;
-      for (const project of apiResponse.data.data) {
+      for (const ld of locationDevices) {
         try {
-          const deviceResult = await this.getSensorsAndSync(project.id, 1);
-          if (deviceResult.success) {
-            totalDeviceCount += deviceResult.syncedCount;
+          const priceTypeEnum = ld.location?.priceType?.priceTypeEnum;
+          if (priceTypeEnum !== PriceTypeEnum.PRICE_TYPE_3) {
+            continue;
           }
-        } catch (error) {
-          this.logger.error(`Failed to sync devices for project ${project.name}:`, error.message);
+
+          this.logger.log(`Generating bill for location-device ${ld.id}...`);
+
+          ld.periodStartIndex = ld.currentIndex;
+          ld.weekdayPeak = 0;
+          ld.weekdayMidPeak = 0;
+          ld.weekdayOffPeak = 0;
+          ld.weekendMidPeak = 0;
+          ld.weekendOffPeak = 0;
+
+          await this.locationDeviceRepository.save(ld);
+          processedCount++;
+
+          this.logger.log(`Successfully reset location-device ${ld.id}`);
+        } catch (innerErr) {
+          this.logger.error(`Failed to process location-device ${ld.id}: ${innerErr?.message}`);
         }
       }
 
-      return {
-        success: true,
-        message: `Full sync completed. Projects: ${projectResult.syncedCount}, Total devices: ${totalDeviceCount}`,
-        totalSyncedCount: totalDeviceCount,
-      };
+      this.logger.log(`Monthly bill generation completed. Processed: ${processedCount} location devices`);
     } catch (error) {
-      this.logger.error('Failed to perform full sync:', error.message);
-      throw error;
+      this.logger.error('Monthly bill generation failed:', error.message);
     }
+  }
+
+  private async syncSingleLocationDevice(ld: LocationDeviceEntity): Promise<void> {
+    if (!ld.device || !ld.device.sensorId || !ld.device.workspaceId) {
+      return;
+    }
+
+    const fieldKey = ld.device.fieldCalculate;
+    const latest = await this.getLatestStorageFromAmigo(ld.device.workspaceId, ld.device.sensorId, fieldKey);
+
+    if (!latest) {
+      return;
+    }
+
+    const latestValue = Number(latest.value);
+    const latestTime = new Date(latest.timestamp);
+    const prevOverall = Number(ld.currentIndex ?? 0);
+
+    if (!isNaN(prevOverall) && latestValue === prevOverall) {
+      return;
+    }
+
+    ld.currentIndex = latestValue;
+
+    const isResidential = ld.location?.locationType?.locationTypeEnum === LocationTypeEnum.RESIDENTIAL;
+    const priceTypeEnum = ld.location?.priceType?.priceTypeEnum;
+
+    if (isResidential || priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1) {
+      await this.locationDeviceRepository.save(ld);
+      return;
+    }
+
+    if (priceTypeEnum === PriceTypeEnum.PRICE_TYPE_3) {
+      await this.updatePriceType3TimeSlots(ld, latestValue, prevOverall, latestTime);
+    } else {
+      await this.locationDeviceRepository.save(ld);
+    }
+  }
+
+  private async updatePriceType3TimeSlots(
+    ld: LocationDeviceEntity,
+    latestValue: number,
+    prevOverall: number,
+    latestTime: Date
+  ): Promise<void> {
+    const delta = latestValue - (isNaN(prevOverall) ? 0 : prevOverall);
+
+    if (delta < 0) {
+      this.logger.warn(
+        `Negative delta detected for location-device ${ld.id}. ` +
+          `PrevIndex: ${prevOverall}, LatestValue: ${latestValue}, Delta: ${delta}`
+      );
+      await this.locationDeviceRepository.save(ld);
+      return;
+    }
+
+    const dayType = this.getDayType(latestTime);
+    const slotName = await this.getTimeSlotNameForTimestamp(dayType, latestTime);
+
+    if (!slotName) {
+      this.logger.warn(`Cannot determine time slot for timestamp ${latestTime.toISOString()}`);
+      await this.locationDeviceRepository.save(ld);
+      return;
+    }
+
+    let currentSlotValue = 0;
+
+    if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
+      if (slotName === TimeSlotNameEnum.PEAK) {
+        currentSlotValue = Number(ld.weekdayPeak ?? 0);
+      } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        currentSlotValue = Number(ld.weekdayMidPeak ?? 0);
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        currentSlotValue = Number(ld.weekdayOffPeak ?? 0);
+      }
+    } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
+      if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        currentSlotValue = Number(ld.weekendMidPeak ?? 0);
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        currentSlotValue = Number(ld.weekendOffPeak ?? 0);
+      }
+    }
+
+    // Cộng dồn delta vào khung giờ
+    const newSlotValue = currentSlotValue + delta;
+
+    // Cập nhật lại giá trị
+    if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
+      if (slotName === TimeSlotNameEnum.PEAK) {
+        ld.weekdayPeak = newSlotValue;
+      } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        ld.weekdayMidPeak = newSlotValue;
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        ld.weekdayOffPeak = newSlotValue;
+      }
+    } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
+      if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        ld.weekendMidPeak = newSlotValue;
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        ld.weekendOffPeak = newSlotValue;
+      }
+    }
+
+    await this.locationDeviceRepository.save(ld);
   }
 
   private getDayType(date: Date): TimeSlotDayTypeEnum {
@@ -605,6 +360,320 @@ export class DataCrawlerService {
     } catch (error) {
       this.logger.error('Failed to fetch latest storage from Amigo:', error.message);
       return null;
+    }
+  }
+
+  public async getCurrentAccessToken(): Promise<string> {
+    if (!this.accessToken) {
+      this.logger.log('No access token available, fetching new one...');
+      this.accessToken = await this.getAccessToken();
+    }
+    return this.accessToken;
+  }
+
+  public async forceRefreshAccessToken(): Promise<string> {
+    try {
+      this.logger.log('Force refreshing access token due to expiration...');
+      this.isRefreshing = true;
+      this.accessToken = await this.getAccessToken();
+      this.logger.log('Access token force refreshed successfully');
+      return this.accessToken;
+    } catch (error) {
+      this.logger.error('Failed to force refresh access token:', error.message);
+      throw error;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  public async validateAndGetToken(): Promise<string> {
+    if (!this.accessToken) {
+      return this.getCurrentAccessToken();
+    }
+    return this.accessToken;
+  }
+
+  public async getSyncStatus(): Promise<{
+    success: boolean;
+    message: string;
+    workspaceCount: number;
+    deviceCount: number;
+    locationDeviceCount: number;
+    lastSyncTime?: Date;
+    nextSyncTime?: Date;
+  }> {
+    try {
+      const workspaces = await this.workspaceRepository.find();
+      const devices = await this.deviceRepository.find();
+      const locationDevices = await this.locationDeviceRepository.find();
+
+      const now = new Date();
+      const nextSync = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+
+      return {
+        success: true,
+        message: 'Sync status retrieved successfully',
+        workspaceCount: workspaces.length,
+        deviceCount: devices.length,
+        locationDeviceCount: locationDevices.length,
+        lastSyncTime: now,
+        nextSyncTime: nextSync,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get sync status:', error.message);
+      return {
+        success: false,
+        message: `Failed to get sync status: ${error.message}`,
+        workspaceCount: 0,
+        deviceCount: 0,
+        locationDeviceCount: 0,
+      };
+    }
+  }
+
+  private async getVcToken() {
+    const captchaKey = generateRandomString(this.configService.get<string>('CAPTCHA_KEY'));
+    const url = `${this.apiEndpoint}/neurongateway/neuron/captcha?key=${captchaKey}`;
+    const response = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
+    const base64 = Buffer.from(response.data).toString('base64');
+    const imageDataUrl = `data:image/png;base64,${base64}`;
+    const captchaText = await this.geminiService.readCaptcha(imageDataUrl);
+    return { captchaText, captchaKey };
+  }
+
+  private async crawlAccessToken(code: string, captchaKey: string) {
+    const url = `${this.apiEndpoint}/neurongateway/neuron/oauth/token`;
+    const body = qs.stringify({
+      username: this.authConfig.username,
+      password: this.authConfig.password,
+      vc_code: code,
+      vc_token: captchaKey,
+      tenant_code: this.authConfig.tenantCode,
+      grant_type: this.authConfig.grantType,
+      client_id: this.authConfig.clientId,
+      client_secret: this.authConfig.clientSecret,
+      auth_type: this.authConfig.authType,
+    });
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    try {
+      const response = await firstValueFrom(this.httpService.post(url, body, { headers }));
+      return response?.data ?? [];
+    } catch (error) {
+      this.logger.error(`Failed to fetch data from ${url}:`, error.message);
+      throw error;
+    }
+  }
+
+  public async getAccessToken(): Promise<string> {
+    try {
+      const { captchaText, captchaKey } = await this.getVcToken();
+      const tokenResponse = await this.crawlAccessToken(captchaText, captchaKey);
+      return tokenResponse.data.access_token;
+    } catch (error) {
+      this.logger.error('Failed to get access token:', error.message);
+      throw error;
+    }
+  }
+
+  public async getSensorsAndSync(
+    projectId: string,
+    systemType: number
+  ): Promise<{ success: boolean; message: string; syncedCount: number }> {
+    try {
+      const accessToken = await this.getCurrentAccessToken();
+      const url = `${this.apiEndpoint}/gateway/iot/api/IoTSensor/GetSensorsByProjectUser`;
+      const params = { projectId, systemType };
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const apiResponse = plainToInstance(AmigoApiResponseDto, response.data);
+
+      if (!apiResponse.isSuccess || apiResponse.code !== 0) {
+        throw new Error(`API call failed: ${apiResponse.message}`);
+      }
+
+      const syncedCount = await this.syncSensorsToDatabase(apiResponse.data, projectId);
+
+      return {
+        success: true,
+        message: `Successfully synced ${syncedCount} sensors`,
+        syncedCount,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get sensors and sync for project ${projectId}:`, error.message);
+      throw error;
+    }
+  }
+
+  private async syncSensorsToDatabase(sensors: AmigoSensorDto[], projectId: string): Promise<number> {
+    let syncedCount = 0;
+
+    for (const sensor of sensors) {
+      try {
+        const existingDevice = await this.deviceRepository.findOne({
+          where: { devEUI: sensor.devEUI, sensorId: sensor.sensorId },
+        });
+
+        if (existingDevice) {
+          existingDevice.name = sensor.name;
+          existingDevice.description = sensor.description;
+          existingDevice.status = true;
+          existingDevice.workspaceId = projectId;
+          await this.deviceRepository.save(existingDevice);
+        } else {
+          const newDevice = this.deviceRepository.create({
+            devEUI: sensor.devEUI,
+            sensorId: sensor.sensorId,
+            name: sensor.name,
+            description: sensor.description,
+            status: true,
+            workspaceId: projectId,
+            createdBy: 'amigo',
+            updatedBy: 'amigo',
+          } as DeviceEntity);
+          await this.deviceRepository.save(newDevice);
+        }
+
+        syncedCount++;
+      } catch (error) {
+        this.logger.error(`Failed to sync sensor ${sensor.sensorId}:`, error.message);
+      }
+    }
+
+    return syncedCount;
+  }
+
+  public async syncAllProjects(): Promise<{ success: boolean; message: string; syncedCount: number }> {
+    try {
+      this.logger.log('Fetching all projects from Amigo API...');
+      const accessToken = await this.getCurrentAccessToken();
+      const url = `${this.apiEndpoint}/gateway/project/api/Project/EnterprisePageList`;
+      const params = { pageSize: -1 };
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const apiResponse = plainToInstance(AmigoProjectApiResponseDto, response.data);
+
+      if (!apiResponse.isSuccess) {
+        throw new Error(`API call failed: ${apiResponse.message}`);
+      }
+
+      const syncedCount = await this.syncProjectsToDatabase(apiResponse.data.data);
+      this.logger.log(`Successfully synced ${syncedCount} projects`);
+
+      return {
+        success: true,
+        message: `Successfully synced ${syncedCount} projects`,
+        syncedCount,
+      };
+    } catch (error) {
+      this.logger.error('Failed to sync projects:', error.message);
+      throw error;
+    }
+  }
+
+  private async syncProjectsToDatabase(projects: AmigoProjectDto[]): Promise<number> {
+    let syncedCount = 0;
+
+    for (const project of projects) {
+      try {
+        const existingWorkspace = await this.workspaceRepository.findOne({
+          where: { id: project.id },
+        });
+
+        if (existingWorkspace) {
+          existingWorkspace.name = project.name;
+          existingWorkspace.updatedBy = 'amigo';
+          await this.workspaceRepository.save(existingWorkspace);
+        } else {
+          const newWorkspace = this.workspaceRepository.create({
+            id: project.id,
+            name: project.name,
+            createdBy: 'amigo',
+            updatedBy: 'amigo',
+            createdAt: project.creationTime,
+            updatedAt: project.creationTime,
+          } as WorkspaceEntity);
+          await this.workspaceRepository.save(newWorkspace);
+        }
+
+        syncedCount++;
+      } catch (error) {
+        this.logger.error(`Failed to sync project ${project.name}:`, error.message);
+      }
+    }
+
+    return syncedCount;
+  }
+
+  public async syncAllDevicesFromProjects(): Promise<{
+    success: boolean;
+    message: string;
+    totalSyncedCount: number;
+  }> {
+    try {
+      this.logger.log('Starting full sync: projects and devices...');
+
+      const projectResult = await this.syncAllProjects();
+      if (!projectResult.success) {
+        throw new Error('Failed to sync projects');
+      }
+
+      const accessToken = await this.getCurrentAccessToken();
+      const url = `${this.apiEndpoint}/gateway/project/api/Project/EnterprisePageList`;
+      const params = { pageSize: -1 };
+
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          params,
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const apiResponse = plainToInstance(AmigoProjectApiResponseDto, response.data);
+      if (!apiResponse.isSuccess) {
+        throw new Error(`Failed to fetch projects for device sync: ${apiResponse.message}`);
+      }
+
+      let totalDeviceCount = 0;
+      for (const project of apiResponse.data.data) {
+        try {
+          const deviceResult = await this.getSensorsAndSync(project.id, 1);
+          if (deviceResult.success) {
+            totalDeviceCount += deviceResult.syncedCount;
+          }
+        } catch (error) {
+          this.logger.error(`Failed to sync devices for project ${project.name}:`, error.message);
+        }
+      }
+
+      return {
+        success: true,
+        message: `Full sync completed. Projects: ${projectResult.syncedCount}, Total devices: ${totalDeviceCount}`,
+        totalSyncedCount: totalDeviceCount,
+      };
+    } catch (error) {
+      this.logger.error('Failed to perform full sync:', error.message);
+      throw error;
     }
   }
 }
