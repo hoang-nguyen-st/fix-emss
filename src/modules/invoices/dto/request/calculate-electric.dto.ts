@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsUUID, IsDateString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CalculateElectricDto {
@@ -10,26 +10,6 @@ export class CalculateElectricDto {
   @IsUUID()
   @IsNotEmpty()
   locationId: string;
-
-  @ApiProperty({
-    description: 'Ngày bắt đầu tính toán (tùy chọn). Nếu không cung cấp sẽ sử dụng ngày hiện tại',
-    example: '2025-09-01',
-    required: false,
-    format: 'date',
-  })
-  @IsDateString()
-  @IsOptional()
-  startDate?: string;
-
-  @ApiProperty({
-    description: 'Ngày kết thúc tính toán (tùy chọn). Nếu không cung cấp sẽ sử dụng ngày hiện tại',
-    example: '2025-09-15',
-    required: false,
-    format: 'date',
-  })
-  @IsDateString()
-  @IsOptional()
-  endDate?: string;
 }
 
 export class TariffResult {

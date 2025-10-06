@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
@@ -101,9 +101,6 @@ export class InvoicesController {
     },
   })
   async calculateElectric(@Query() dto: CalculateElectricDto) {
-    if (dto.endDate && new Date(dto.endDate) < new Date(dto.startDate)) {
-      throw new BadRequestException('endDate must be after or equal startDate');
-    }
     return await this.invoicesService.calculateElectric(dto);
   }
 }

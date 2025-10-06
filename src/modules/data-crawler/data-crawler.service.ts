@@ -17,6 +17,7 @@ import { TimeSlotEntity } from '@app/modules/price-types/entities/time-slot.enti
 import { PriceTypeEnum, LocationTypeEnum, TimeSlotDayTypeEnum, TimeSlotNameEnum } from '@app/common/constants/enums';
 import { AmigoService } from '@app/modules/amigo/amigo.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { InvoicesService } from '@app/modules/invoices/invoices.service';
 
 @Injectable()
 export class DataCrawlerService {
@@ -39,7 +40,9 @@ export class DataCrawlerService {
     @InjectRepository(TimeSlotEntity)
     private readonly timeSlotRepository: Repository<TimeSlotEntity>,
     @Inject(forwardRef(() => AmigoService))
-    private readonly amigoService: AmigoService
+    private readonly amigoService: AmigoService,
+    @Inject(forwardRef(() => InvoicesService))
+    private readonly invoicesService: InvoicesService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.authConfig = {
@@ -545,6 +548,107 @@ export class DataCrawlerService {
     }
   }
 
+  private async syncSingleLocationDevice(ld: LocationDeviceEntity): Promise<void> {
+    if (!ld.device || !ld.device.sensorId || !ld.device.workspaceId) {
+      return;
+    }
+
+    const fieldKey = ld.device.fieldCalculate;
+    const latest = await this.getLatestStorageFromAmigo(ld.device.workspaceId, ld.device.sensorId, fieldKey);
+
+    if (!latest) {
+      return;
+    }
+
+    const latestValue = Number(latest.value);
+    const latestTime = new Date(latest.timestamp);
+    const prevOverall = Number(ld.currentIndex ?? 0);
+
+    if (!isNaN(prevOverall) && latestValue === prevOverall) {
+      return;
+    }
+
+    ld.currentIndex = latestValue;
+
+    const isResidential = ld.location?.locationType?.locationTypeEnum === LocationTypeEnum.RESIDENTIAL;
+    const priceTypeEnum = ld.location?.priceType?.priceTypeEnum;
+
+    if (isResidential || priceTypeEnum === PriceTypeEnum.PRICE_TYPE_1) {
+      await this.locationDeviceRepository.save(ld);
+      return;
+    }
+
+    if (priceTypeEnum === PriceTypeEnum.PRICE_TYPE_3) {
+      await this.updatePriceType3TimeSlots(ld, latestValue, prevOverall, latestTime);
+    } else {
+      await this.locationDeviceRepository.save(ld);
+    }
+  }
+
+  private async updatePriceType3TimeSlots(
+    ld: LocationDeviceEntity,
+    latestValue: number,
+    prevOverall: number,
+    latestTime: Date
+  ): Promise<void> {
+    const delta = latestValue - (isNaN(prevOverall) ? 0 : prevOverall);
+
+    if (delta < 0) {
+      this.logger.warn(
+        `Negative delta detected for location-device ${ld.id}. ` +
+          `PrevIndex: ${prevOverall}, LatestValue: ${latestValue}, Delta: ${delta}`
+      );
+      await this.locationDeviceRepository.save(ld);
+      return;
+    }
+
+    const dayType = this.getDayType(latestTime);
+    const slotName = await this.getTimeSlotNameForTimestamp(dayType, latestTime);
+
+    if (!slotName) {
+      this.logger.warn(`Cannot determine time slot for timestamp ${latestTime.toISOString()}`);
+      await this.locationDeviceRepository.save(ld);
+      return;
+    }
+
+    let currentSlotValue = 0;
+
+    if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
+      if (slotName === TimeSlotNameEnum.PEAK) {
+        currentSlotValue = Number(ld.weekdayPeak ?? 0);
+      } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        currentSlotValue = Number(ld.weekdayMidPeak ?? 0);
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        currentSlotValue = Number(ld.weekdayOffPeak ?? 0);
+      }
+    } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
+      if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        currentSlotValue = Number(ld.weekendMidPeak ?? 0);
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        currentSlotValue = Number(ld.weekendOffPeak ?? 0);
+      }
+    }
+
+    const newSlotValue = currentSlotValue + delta;
+
+    if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
+      if (slotName === TimeSlotNameEnum.PEAK) {
+        ld.weekdayPeak = newSlotValue;
+      } else if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        ld.weekdayMidPeak = newSlotValue;
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        ld.weekdayOffPeak = newSlotValue;
+      }
+    } else if (dayType === TimeSlotDayTypeEnum.WEEKEND) {
+      if (slotName === TimeSlotNameEnum.MID_PEAK) {
+        ld.weekendMidPeak = newSlotValue;
+      } else if (slotName === TimeSlotNameEnum.OFF_PEAK) {
+        ld.weekendOffPeak = newSlotValue;
+      }
+    }
+
+    await this.locationDeviceRepository.save(ld);
+  }
   private getDayType(date: Date): TimeSlotDayTypeEnum {
     const day = date.getDay();
     return day === 0 || day === 6 ? TimeSlotDayTypeEnum.WEEKEND : TimeSlotDayTypeEnum.WEEKDAY;
