@@ -54,6 +54,11 @@ export class LocationDeviceService {
           weekdayPeak: isResidential ? 0 : device.initialIndex,
           weekendMidPeak: isResidential ? 0 : device.initialIndex,
           weekendOffPeak: isResidential ? 0 : device.initialIndex,
+          periodWeekdayOffPeak: device.initialIndex,
+          periodWeekdayMidPeak: device.initialIndex,
+          periodWeekdayPeak: device.initialIndex,
+          periodWeekendOffPeak: device.initialIndex,
+          periodWeekendMidPeak: device.initialIndex,
         });
       });
 
