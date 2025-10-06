@@ -63,7 +63,7 @@ export class LocationDeviceEntity extends AbstractEntity {
   @Column({
     type: 'enum',
     enum: DeviceLabel,
-    default: DeviceLabel.BRANCH,
+    default: DeviceLabel.SUB,
     name: 'label',
   })
   label: DeviceLabel;

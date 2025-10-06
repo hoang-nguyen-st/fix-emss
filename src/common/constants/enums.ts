@@ -129,6 +129,6 @@ export enum VoltageUnitEnum {
 }
 
 export enum DeviceLabel {
-  TOTAL = 'TOTAL',
-  BRANCH = 'BRANCH',
+  MAIN = 'MAIN',
+  SUB = 'SUB',
 }
