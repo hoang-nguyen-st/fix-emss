@@ -24,9 +24,7 @@ export abstract class InvoiceCalculationBaseStrategy implements InvoiceCalculati
   abstract calculate(
     devices: LocationDeviceEntity[],
     workspaceId: string | undefined,
-    locationTypeId: string,
-    start?: Date,
-    end?: Date
+    locationTypeId: string
   ): Promise<InvoiceCalculationResult>;
 
   protected async getVoltageLevels(): Promise<VoltageLevelEntity[]> {

@@ -17,6 +17,7 @@ import { TimeSlotEntity } from '@app/modules/price-types/entities/time-slot.enti
 import { PriceTypeEnum, LocationTypeEnum, TimeSlotDayTypeEnum, TimeSlotNameEnum } from '@app/common/constants/enums';
 import { AmigoService } from '@app/modules/amigo/amigo.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { InvoicesService } from '@app/modules/invoices/invoices.service';
 
 @Injectable()
 export class DataCrawlerService {
@@ -39,7 +40,9 @@ export class DataCrawlerService {
     @InjectRepository(TimeSlotEntity)
     private readonly timeSlotRepository: Repository<TimeSlotEntity>,
     @Inject(forwardRef(() => AmigoService))
-    private readonly amigoService: AmigoService
+    private readonly amigoService: AmigoService,
+    @Inject(forwardRef(() => InvoicesService))
+    private readonly invoicesService: InvoicesService
   ) {
     this.apiEndpoint = this.configService.get<string>('DATA_CRAWLER_API_ENDPOINT');
     this.authConfig = {
@@ -277,10 +280,8 @@ export class DataCrawlerService {
       }
     }
 
-    // Cộng dồn delta vào khung giờ
     const newSlotValue = currentSlotValue + delta;
 
-    // Cập nhật lại giá trị
     if (dayType === TimeSlotDayTypeEnum.WEEKDAY) {
       if (slotName === TimeSlotNameEnum.PEAK) {
         ld.weekdayPeak = newSlotValue;

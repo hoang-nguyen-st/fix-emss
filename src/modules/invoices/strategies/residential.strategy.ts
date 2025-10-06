@@ -9,9 +9,7 @@ export class ResidentialStrategy extends InvoiceCalculationBaseStrategy {
   async calculate(
     devices: LocationDeviceEntity[],
     workspaceId: string | undefined,
-    locationTypeId: string,
-    start?: Date,
-    end?: Date
+    locationTypeId: string
   ): Promise<{ totalPrice: number; totalPriceWithVAT: number; details: TariffResult[] }> {
     const ld = devices[0];
     const initIndex = ld.initialIndex;
@@ -42,16 +40,7 @@ export class ResidentialStrategy extends InvoiceCalculationBaseStrategy {
       throw new NotFoundException(`Không tìm thấy bảng giá bậc thang phù hợp cho loại địa điểm này`);
     }
 
-    const daysInPeriod =
-      start && end ? Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))) : 30;
-
-    const Dref = 30;
-
-    const kwhNumbers = priceTiers.map((t) => {
-      const raw = Number(t.kwh ?? 0);
-      if (raw === 0) return 0;
-      return Math.round((raw * daysInPeriod) / Dref);
-    });
+    const kwhNumbers = priceTiers.map((t) => Number(t.kwh ?? 0));
     const unitPrices = priceTiers.map((t) => Number(t.unitPrice ?? 0));
     const levelNumbers = priceTiers.map((t) => Number(t.level ?? 0));
 

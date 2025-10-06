@@ -9,6 +9,7 @@ import { LocationDeviceEntity } from '@app/modules/location-devices/entities/loc
 import { GeminiModule } from '../gemini/gemini.module';
 import { TimeSlotEntity } from '@app/modules/price-types/entities/time-slot.entity';
 import { AmigoModule } from '@app/modules/amigo/amigo.module';
+import { InvoicesModule } from '@app/modules/invoices/invoices.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AmigoModule } from '@app/modules/amigo/amigo.module';
     TypeOrmModule.forFeature([DeviceEntity, WorkspaceEntity, LocationDeviceEntity, TimeSlotEntity]),
     GeminiModule,
     forwardRef(() => AmigoModule),
+    forwardRef(() => InvoicesModule),
   ],
   providers: [DataCrawlerService],
   exports: [DataCrawlerService],
