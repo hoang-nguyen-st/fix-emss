@@ -3,6 +3,7 @@ import { AbstractEntity } from '@app/common/entities';
 import { DeviceEntity } from '@app/modules/devices/entities/device.entity';
 import { LocationEntity } from '@app/modules/locations/entities/location.entity';
 import { Expose } from 'class-transformer';
+import { DeviceLabel } from '@Constant/enums';
 
 @Entity('location_devices')
 export class LocationDeviceEntity extends AbstractEntity {
@@ -57,6 +58,15 @@ export class LocationDeviceEntity extends AbstractEntity {
   @Expose()
   @Column({ type: 'numeric', nullable: true, name: 'period_weekend_off_peak' })
   periodWeekendOffPeak: number;
+
+  @Expose()
+  @Column({
+    type: 'enum',
+    enum: DeviceLabel,
+    default: DeviceLabel.BRANCH,
+    name: 'label',
+  })
+  label: DeviceLabel;
 
   @Expose()
   @Column({ type: 'uuid', name: 'device_id' })

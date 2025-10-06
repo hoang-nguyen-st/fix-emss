@@ -127,3 +127,8 @@ export enum VoltageUnitEnum {
   KILOVOLT = 'kV',
   MEGAVOLT = 'MV',
 }
+
+export enum DeviceLabel {
+  TOTAL = 'TOTAL',
+  BRANCH = 'BRANCH',
+}
