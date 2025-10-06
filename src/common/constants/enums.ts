@@ -147,3 +147,8 @@ export enum TimeUsageEnum {
   OFF_PEAK = 'OFF_PEAK',
   MID_PEAK = 'MID_PEAK',
 }
+
+export enum DeviceLabel {
+  MAIN = 'MAIN',
+  SUB = 'SUB',
+}
